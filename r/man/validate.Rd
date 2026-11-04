@@ -6,35 +6,41 @@
 \alias{cancel}
 \title{Validate, submit and cancel}
 \usage{
-validate(weights, as_of, rationale = NULL)
+validate(weights, close_date, rationale = NULL)
 
-submit(weights, as_of, rationale)
+submit(weights, close_date, rationale)
 
 cancel(submission_id)
 }
 \arguments{
-\item{weights}{Target weights by ticker: a named numeric vector, or a
-data frame with columns \code{ticker} and \code{weight}. Tickers left out get
-weight zero; the rest of the book stays in cash.}
+\item{weights}{Target weights: a data frame with columns \code{ticker} and
+\code{weight}, such as \code{tibble::tibble(ticker = "AAPL", weight = 0.1)}. A
+named numeric vector works too. Stocks you leave out get weight zero;
+the rest of the book stays in cash.}
 
-\item{as_of}{Date of the last close your decision used.}
+\item{close_date}{Date of the close your decision is based on, such as
+\code{"2027-03-01"}: usually \code{max(get_universe()$close_date)}.}
 
-\item{rationale}{Why you trade, for your decision log. Required by
-\code{submit()}.}
+\item{rationale}{Why you chose these weights, for your decision log.
+Required by \code{submit()}.}
 
 \item{submission_id}{Id returned by \code{submit()}.}
 }
 \value{
-An \code{aefsim_check}: a list with \code{ok}, \code{fill_date},
-\code{parameter_set_id}, \code{weights}, \code{errors} (a tibble of \code{code}, \code{ticker},
+An \code{aefsim_check}: a list with \code{ok}, \code{trade_date},
+\code{parameter_set_id} (the rules for that trade), \code{weights} (a tibble of
+\code{ticker} and \code{weight}), \code{errors} (a tibble of \code{code}, \code{ticker},
 \code{message}) and \code{diagnostics}; from \code{submit()} also \code{submission_id} and
 \code{status}. \code{cancel()} returns a list with \code{submission_id},
-\code{cancelled_at} and \code{fill_date}.
+\code{cancelled_at} and \code{trade_date}.
 }
 \description{
 \code{validate()} runs every check the simulation would run and stores
-nothing. \code{submit()} sends the weights for the next fill; the last
-accepted submission before that fill's deadline (09:00 New York time) is
-filled at the open, and a rejected one is kept in your log with its
-error codes. \code{cancel()} withdraws a submission before its deadline.
+nothing. \code{submit()} sends target weights; they trade at the next market
+open whose deadline (09:00 New York time) has not passed, so a
+submission sent after a deadline, over a weekend or before the
+simulation starts waits for the next open. The last accepted submission
+before a deadline is the one that trades; a rejected one is kept in your
+log with its errors. \code{cancel()} withdraws a submission before its
+deadline.
 }

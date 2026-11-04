@@ -17,19 +17,22 @@ get_leaderboard()
 }
 \value{
 \itemize{
-\item \code{get_portfolio()}: a list of \code{date}, \code{nav}, \code{cash} and \code{positions}
-(a tibble of \code{ticker}, \code{shares}, \code{price}, \code{value}, \code{weight}, \code{stale}).
-\item \code{get_submissions()}: a tibble, newest first, with \code{status},
-\code{fill_date}, \code{cancelled}, \code{filled}, \code{rationale} and the \code{weights} as a
-list column of named vectors.
+\item \code{get_portfolio()}: a one-row tibble of \code{close_date}, \code{portfolio_value}
+(positions plus cash), \code{cash} and \code{positions}, a list column holding a
+tibble of \code{ticker}, \code{shares}, \code{price}, \code{value}, \code{weight} and \code{stale}.
+\code{tidyr::unnest(get_portfolio(), positions)} gives one row per position.
+\item \code{get_submissions()}: a tibble, newest first, with \code{close_date},
+\code{trade_date}, \code{status}, \code{cancelled}, \code{traded}, \code{rationale} and the
+\code{weights} as a list column of tibbles (\code{ticker}, \code{weight}).
 \item \code{get_performance()}: a list of \code{summary} (return, volatility, Sharpe
 ratio with standard error, drawdown, turnover, costs), \code{benchmarks}
-(the same for the bots) and \code{series} (daily NAV).
+(the same for the benchmarks) and \code{series} (your daily
+\code{portfolio_value}, before and after costs).
 \item \code{get_leaderboard()}: a tibble of every team's statistics under
 pseudonyms; \code{you} marks your row, \code{rank} is by Sharpe ratio among teams.
 }
 }
 \description{
-Results are updated once a night, after the US close: a fill at
+Results are updated once a night, after the US close: a trade at
 Tuesday's open shows up on Wednesday morning (Copenhagen time).
 }

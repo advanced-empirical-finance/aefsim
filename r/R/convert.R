@@ -1,4 +1,4 @@
-date_cols <- c("date", "as_of", "fill_date", "effective_from", "delisted_on", "start", "end", "next_fill")
+date_cols <- c("date", "close_date", "trade_date", "effective_from", "delisted_on", "start", "end", "next_trade_date")
 time_cols <- c("submitted_at", "deadline", "cancelled_at", "next_deadline", "time")
 
 # JSON records (a list of objects) to a tibble. Scalar fields become
@@ -29,21 +29,48 @@ parse_time <- function(x) as.POSIXct(x, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC
 
 as_date1 <- function(x) if (is.null(x)) as.Date(NA) else as.Date(x)
 
-# Weights from a named vector, a named list or a data frame with ticker and
-# weight columns, as a JSON-ready named list.
-weights_body <- function(weights) {
-  if (is.data.frame(weights)) {
-    if (!all(c("ticker", "weight") %in% names(weights))) stop("A weights data frame needs columns `ticker` and `weight`.", call. = FALSE)
-    weights <- stats::setNames(weights$weight, weights$ticker)
-  }
-  if (!length(weights)) return(stats::setNames(list(), character(0)))
-  if (is.null(names(weights)) || any(!nzchar(names(weights)))) stop("Weights need ticker names.", call. = FALSE)
-  w <- unlist(weights)
-  if (!is.numeric(w) || any(!is.finite(w))) stop("Weights must be finite numbers.", call. = FALSE)
-  as.list(w)
+# A JSON object of tickers and weights to a tibble of `ticker` and `weight`.
+weights_tbl <- function(w) {
+  w <- unlist(w)
+  tibble::tibble(ticker = names(w) %||% character(0), weight = unname(as.numeric(w %||% numeric(0))))
 }
 
-as_of_string <- function(as_of) {
-  if (missing(as_of) || is.null(as_of)) stop("Give `as_of`: the date of the last close your decision used.", call. = FALSE)
-  format(as.Date(as_of))
+# Weights from a data frame with ticker and weight columns, a named vector or
+# a named list, as a JSON-ready named list.
+weights_body <- function(weights) {
+  if (is.data.frame(weights)) {
+    if (!all(c("ticker", "weight") %in% names(weights))) bad_weights("weights_columns")
+    tickers <- as.character(weights$ticker)
+    values <- as.list(weights$weight)
+  } else if (is.atomic(weights) || is.list(weights)) {
+    if (is.null(weights)) bad_weights("weights_columns")
+    tickers <- names(weights) %||% rep(NA_character_, length(weights))
+    values <- as.list(unname(weights))
+  } else {
+    bad_weights("weights_columns")
+  }
+  if (!length(values)) return(stats::setNames(list(), character(0)))
+  if (anyNA(tickers) || any(!nzchar(trimws(tickers)))) bad_weights("weights_tickers")
+  finite <- vapply(values, function(v) is.numeric(v) && length(v) == 1L && is.finite(v), logical(1))
+  if (!all(finite)) api_error("malformed_weights", sprintf(msg$weights_numbers, paste(tickers[!finite], collapse = ", ")))
+  key <- toupper(trimws(tickers))
+  if (anyDuplicated(key)) api_error("duplicate_ticker", sprintf(msg$weights_duplicates, paste(unique(key[duplicated(key)]), collapse = ", ")))
+  stats::setNames(lapply(values, as.numeric), tickers)
+}
+
+bad_weights <- function(which) api_error("malformed_weights", sprintf(msg[[which]], weights_example))
+
+# A date argument as "YYYY-MM-DD"; Date, POSIXct or such a string.
+date_string <- function(x, name, code = "invalid_date") {
+  ok <- length(x) == 1L && (inherits(x, c("Date", "POSIXt")) || is.character(x))
+  d <- if (ok) tryCatch(as.Date(x, optional = TRUE), error = function(e) as.Date(NA)) else as.Date(NA)
+  if (!ok || is.na(d) || (is.character(x) && !grepl("^\\d{4}-\\d{2}-\\d{2}", x))) {
+    api_error(code, sprintf(msg$date_invalid, name, paste(format(x), collapse = " ")))
+  }
+  format(d)
+}
+
+close_date_string <- function(close_date) {
+  if (is.null(close_date)) api_error("invalid_close_date", msg$close_date_missing)
+  date_string(close_date, "close_date", "invalid_close_date")
 }

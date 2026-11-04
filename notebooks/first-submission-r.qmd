@@ -12,7 +12,7 @@ This notebook goes through one decision: see what you may trade, download prices
 Install once:
 
 ```{r}
-install.packages(c("pak", "tidyfinance", "dplyr"))
+install.packages(c("pak", "tidyfinance", "dplyr", "tidyr"))
 pak::pak("advanced-empirical-finance/aefsim/r")
 ```
 
@@ -28,25 +28,25 @@ library(dplyr)
 
 ```{r}
 universe <- get_universe()
-as_of <- max(universe$as_of)   # the latest close
-as_of
-count(universe, eligible, sp500)
+close_date <- max(universe$close_date)   # the latest close
+close_date
+count(universe, sp500)
 ```
 
-Only `eligible` stocks can be bought: CRSP-style common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more. A stock you hold that drops below $5 may be held or reduced, not increased.
+`get_universe()` lists the stocks you can buy: common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more. A stock you hold that drops below $5 stays in your portfolio; you may keep or reduce it, but not buy more.
 
 ```{r}
-get_parameters()                            # costs, shorting, leverage, position cap; applies_next marks the current set
-get_calendar() |> filter(is_next)           # the next fill and its deadline, 09:00 New York time
+get_parameters()                            # costs, shorting, leverage, position cap; applies_next marks the current rules
+get_calendar() |> filter(is_next)           # the next trading day and its deadline, 09:00 New York time
 ```
 
 ## Prices
 
-The simulation does not serve prices. tidyfinance downloads them from Yahoo Finance, the same source the simulation fills at.
+The simulation does not serve prices. tidyfinance downloads them from Yahoo Finance, the same source the simulation trades at.
 
 ```{r}
-candidates <- universe |> filter(eligible, sp500) |> pull(ticker)
-prices <- download_data("Stock Prices", symbols = candidates, start_date = as_of - 365, end_date = as_of)
+candidates <- universe |> filter(sp500) |> pull(ticker)
+prices <- download_data("Stock Prices", symbols = candidates, start_date = close_date - 365, end_date = close_date)
 ```
 
 ## A simple rule
@@ -61,39 +61,40 @@ volatility <- prices |>
   summarise(vol = sd(ret, na.rm = TRUE) * sqrt(252), days = n()) |>
   filter(days >= 200)
 
-picks <- volatility |> slice_min(vol, n = 20)
-weights <- setNames(rep(1 / nrow(picks), nrow(picks)), picks$symbol)
+weights <- volatility |>
+  slice_min(vol, n = 20) |>
+  transmute(ticker = symbol, weight = 1 / n())
 weights
 ```
 
-Weights are fractions of your portfolio's value. Tickers you leave out get zero, so this replaces your whole portfolio; whatever does not add up to one stays in cash.
+Weights are fractions of your portfolio's value, in a tibble with the columns `ticker` and `weight`. Tickers you leave out get zero, so this replaces your whole portfolio; whatever does not add up to one stays in cash.
 
 ## Check, then submit
 
 ```{r}
-check <- validate(weights, as_of = as_of)
+check <- validate(weights, close_date = close_date)
 check
 ```
 
-`validate()` runs every check the simulation runs and stores nothing. When it says OK, submit before the deadline. The rationale is your decision log: write down what you expect and why.
+`validate()` runs every check the simulation runs and stores nothing. When it says OK, submit. The weights trade at the next market open whose deadline (09:00 New York time, usually 15:00 in Copenhagen) has not passed; the check shows that date. The rationale is your decision log: write down what you expect and why.
 
 ```{r}
 result <- submit(
-  weights, as_of = as_of,
+  weights, close_date = close_date,
   rationale = "Low-volatility tilt: equal weight in the 20 least volatile S&P 500 stocks over the past year."
 )
 result
 ```
 
-Changed your mind? Submit again (the last accepted submission before the deadline is filled), or `cancel(result$submission_id)`.
+Changed your mind? Submit again (the last accepted submission before the deadline is the one that trades), or `cancel(result$submission_id)`.
 
 ## The next morning
 
-Fills happen at the US open of the fill date; results appear after the nightly update.
+Trades happen at the US open; results appear after the nightly update.
 
 ```{r}
 get_submissions()
-get_portfolio()
+get_portfolio() |> tidyr::unnest(positions)   # one row per position
 get_performance()$summary
 get_leaderboard()
 ```
