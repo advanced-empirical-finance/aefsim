@@ -1,4 +1,4 @@
-"""The same ten scenarios as r/tests/testthat/test-client.R, with the same messages word for word."""
+"""The same eleven scenarios as r/tests/testthat/test-client.R, with the same messages word for word."""
 
 import datetime as dt
 
@@ -155,8 +155,10 @@ def test_a_rejected_submission_is_returned_with_a_warning_not_an_error(api):
     assert "ineligible_ticker PENNY" in repr(x)
 
 
-def test_api_errors_carry_their_code_and_status_a_missing_token_fails_early(api, monkeypatch):
+def test_api_errors_carry_their_code_and_status_a_missing_token_fails_early(api, monkeypatch, tmp_path):
     routes, _ = api
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(client, "_home", lambda: tmp_path)
     routes["GET portfolio"] = (401, {"error": {"code": "unknown_token", "message": "This server does not know your token."}})
     with pytest.raises(aefsim.AefsimError) as e:
         aefsim.get_portfolio()
@@ -166,7 +168,7 @@ def test_api_errors_carry_their_code_and_status_a_missing_token_fails_early(api,
     monkeypatch.setenv("AEF_TOKEN", "")
     with pytest.raises(aefsim.AefsimError) as e:
         aefsim.get_portfolio()
-    assert message(e) == "No team token. Set the environment variable AEF_TOKEN to your team's token (see the aefsim README), or call set_token(). [missing_token]"
+    assert message(e) == "No team token. Run set_token() once to save it, or set the environment variable AEF_TOKEN. [missing_token]"
     monkeypatch.setenv("AEF_TOKEN", "aef_test")
     with pytest.raises(aefsim.AefsimError) as e:
         aefsim.cancel("")
@@ -250,3 +252,60 @@ def test_an_unreachable_server_and_unexpected_answers_get_plain_messages(api, mo
         aefsim.get_universe()
     assert message(e) == "Unexpected answer from the simulation server at https://example.org/aef (HTTP 418). [http_error]"
     assert e.value.status == 418
+
+
+def test_set_token_asks_where_to_save_the_token_and_offers_to_add_it_to_gitignore(monkeypatch, tmp_path, capsys):
+    project, home = tmp_path / "project", tmp_path / "home"
+    project.mkdir()
+    home.mkdir()
+    monkeypatch.chdir(project)
+    monkeypatch.delenv("AEF_TOKEN", raising=False)
+    monkeypatch.setattr(client, "_is_interactive", lambda: True)
+    monkeypatch.setattr(client, "_home", lambda: home)
+    answers, prompts = [], []
+
+    def fake_input(prompt):
+        prompts.append(prompt)
+        return answers.pop(0)
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    answers[:] = [" aef_abc ", "project", "yes"]
+    aefsim.set_token()
+    assert client.os.environ["AEF_TOKEN"] == "aef_abc"
+    assert (project / ".env").read_text() == "AEF_TOKEN=aef_abc\n"
+    assert (project / ".gitignore").read_text() == ".env\n"
+    assert prompts == [
+        "Paste your team's token (it starts with aef_): ",
+        "Where do you want to save it? Enter 'project' for .env in this project's folder or 'home' for your home folder: ",
+        "Do you want to add .env to .gitignore, so your token never ends up in Git? It is highly recommended! Enter 'yes' or 'no': ",
+    ]
+    assert capsys.readouterr().out.splitlines() == [
+        ".env added to .gitignore.", f"Your token is saved in {project / '.env'} and set for this session."]
+    monkeypatch.delenv("AEF_TOKEN")
+    assert client._token() == "aef_abc"
+
+    (home / ".env").write_text("OTHER=1\nAEF_TOKEN=aef_old\n")
+    prompts.clear()
+    answers[:] = ["aef_new", "home", "yes"]
+    aefsim.set_token()
+    assert (home / ".env").read_text() == "OTHER=1\nAEF_TOKEN=aef_new\n"
+    assert prompts[2] == ".env already holds a token. Do you want to replace it? Enter 'yes' or 'no': "
+    capsys.readouterr()
+
+    answers[:] = ["aef_session", "later"]
+    aefsim.set_token()
+    assert client.os.environ["AEF_TOKEN"] == "aef_session"
+    assert capsys.readouterr().out.strip() == "Not saved: the token is set for this session only. Run set_token() again to save it."
+
+    with pytest.raises(aefsim.AefsimError) as e:
+        aefsim.set_token("nope")
+    assert message(e) == "That is not a simulation token: team tokens start with aef_. [invalid_token]"
+    monkeypatch.setattr(client, "_is_interactive", lambda: False)
+    with pytest.raises(aefsim.AefsimError) as e:
+        aefsim.set_token()
+    assert message(e) == (
+        "set_token() asks for your token, which needs an interactive session. "
+        'In a script, use set_token("aef_...") or set the environment variable AEF_TOKEN. [missing_token]'
+    )
+    aefsim.set_token("aef_script")
+    assert client.os.environ["AEF_TOKEN"] == "aef_script"

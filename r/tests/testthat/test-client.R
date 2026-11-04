@@ -1,4 +1,4 @@
-# The same ten scenarios as python/tests/test_client.py, with the same
+# The same eleven scenarios as python/tests/test_client.py, with the same
 # messages word for word.
 
 test_that("the universe is typed and carries its close_date", {
@@ -95,7 +95,7 @@ test_that("API errors carry their code and status; a missing token fails early",
   expect_equal(conditionMessage(err), "This server does not know your token. (server: https://example.org/aef) [unknown_token]")
   withr::local_envvar(AEF_TOKEN = "")
   err <- tryCatch(get_portfolio(), aefsim_error = function(e) e)
-  expect_equal(conditionMessage(err), "No team token. Set the environment variable AEF_TOKEN to your team's token (see the aefsim README), or call set_token(). [missing_token]")
+  expect_equal(conditionMessage(err), "No team token. Run set_token() once to save it, or set the environment variable AEF_TOKEN. [missing_token]")
   withr::local_envvar(AEF_TOKEN = "aef_test")
   err <- tryCatch(cancel(""), aefsim_error = function(e) e)
   expect_equal(conditionMessage(err), "Give submission_id: the id submit() returned, or one from get_submissions(). [invalid_submission_id]")
@@ -181,4 +181,61 @@ test_that("an unreachable server and unexpected answers get plain messages", {
   err <- tryCatch(get_universe(), aefsim_error = function(e) e)
   expect_equal(conditionMessage(err), "Unexpected answer from the simulation server at https://example.org/aef (HTTP 418). [http_error]")
   expect_equal(err$status, 418L)
+})
+
+test_that("set_token() asks where to save the token and offers to add it to .gitignore", {
+  project <- withr::local_tempdir()
+  home <- withr::local_tempdir()
+  withr::local_dir(project)
+  withr::local_envvar(AEF_TOKEN = "")
+  answers <- character()
+  prompts <- character()
+  said <- character()
+  local_mocked_bindings(
+    is_interactive = function() TRUE,
+    ask_line = function(prompt) {
+      prompts <<- c(prompts, prompt)
+      a <- answers[1]
+      answers <<- answers[-1]
+      a
+    },
+    home_dir = function() home,
+    say = function(text) said <<- c(said, text)
+  )
+  answers <- c(" aef_abc ", "project", "yes")
+  set_token()
+  expect_equal(Sys.getenv("AEF_TOKEN"), "aef_abc")
+  expect_equal(readLines(file.path(project, ".Renviron")), "AEF_TOKEN=aef_abc")
+  expect_equal(readLines(file.path(project, ".gitignore")), ".Renviron")
+  expect_equal(prompts, c(
+    "Paste your team's token (it starts with aef_): ",
+    "Where do you want to save it? Enter 'project' for .Renviron in this project's folder or 'home' for your home folder: ",
+    "Do you want to add .Renviron to .gitignore, so your token never ends up in Git? It is highly recommended! Enter 'yes' or 'no': "
+  ))
+  expect_equal(said, c(".Renviron added to .gitignore.",
+                       paste0("Your token is saved in ", file.path(project, ".Renviron"), " and set for this session.")))
+
+  writeLines(c("OTHER=1", "AEF_TOKEN=aef_old"), file.path(home, ".Renviron"))
+  prompts <- character()
+  answers <- c("aef_new", "home", "yes")
+  set_token()
+  expect_equal(readLines(file.path(home, ".Renviron")), c("OTHER=1", "AEF_TOKEN=aef_new"))
+  expect_equal(prompts[3], ".Renviron already holds a token. Do you want to replace it? Enter 'yes' or 'no': ")
+
+  said <- character()
+  answers <- c("aef_session", "later")
+  set_token()
+  expect_equal(Sys.getenv("AEF_TOKEN"), "aef_session")
+  expect_equal(said, "Not saved: the token is set for this session only. Run set_token() again to save it.")
+
+  err <- tryCatch(set_token("nope"), aefsim_error = function(e) e)
+  expect_equal(conditionMessage(err), "That is not a simulation token: team tokens start with aef_. [invalid_token]")
+  local_mocked_bindings(is_interactive = function() FALSE)
+  err <- tryCatch(set_token(), aefsim_error = function(e) e)
+  expect_equal(conditionMessage(err), paste(
+    "set_token() asks for your token, which needs an interactive session.",
+    'In a script, use set_token("aef_...") or set the environment variable AEF_TOKEN. [missing_token]'
+  ))
+  set_token("aef_script")
+  expect_equal(Sys.getenv("AEF_TOKEN"), "aef_script")
 })

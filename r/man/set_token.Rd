@@ -5,12 +5,12 @@
 \alias{set_url}
 \title{Connection settings}
 \usage{
-set_token(token)
+set_token(token = NULL)
 
 set_url(url)
 }
 \arguments{
-\item{token}{Your team's token.}
+\item{token}{Your team's token. Leave it out to be asked for it.}
 
 \item{url}{Base address of the API.}
 }
@@ -18,9 +18,15 @@ set_url(url)
 Invisibly, the value set.
 }
 \description{
-The token comes from the environment variable \code{AEF_TOKEN}. Put
-\code{AEF_TOKEN=aef_...} in \verb{~/.Renviron} (for example with
-\code{usethis::edit_r_environ()}) so it survives restarts, and never put it
-in code you share. \code{set_token()} sets it for the current session only.
+\code{set_token()} stores your team's token so that you never have to put it
+in code. Like tidyfinance's \code{set_wrds_credentials()}, it asks for the
+token, then whether to save it in this project's \code{.Renviron} or in the one
+in your home folder, and offers to add a project \code{.Renviron} to
+\code{.gitignore} so the token never ends up in Git. R reads \code{.Renviron} at
+startup, so you run it once. In a script, pass the token instead (or set
+the environment variable \code{AEF_TOKEN}): \code{set_token(token)} sets it for
+the session without asking anything.
+}
+\details{
 \code{set_url()} points the client at another server, for example a test one.
 }

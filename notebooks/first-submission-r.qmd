@@ -9,19 +9,22 @@ This notebook goes through one decision: see what you may trade, download prices
 
 ## Setup
 
-Install once:
+Install once, in a terminal in your project folder, with [uvr](https://github.com/nbafrank/uvr) (0.4.8 or later):
 
-```{r}
-install.packages(c("pak", "tidyfinance", "dplyr", "tidyr"))
-pak::pak("advanced-empirical-finance/aefsim/r")
+```sh
+uvr add advanced-empirical-finance/aefsim/r tidyfinance dplyr tidyr
 ```
-
-Your team's token goes into `~/.Renviron` as `AEF_TOKEN=aef_...` (open the file with `usethis::edit_r_environ()`), followed by a restart of R. Never paste it into a script or notebook you share.
 
 ```{r}
 library(aefsim)
 library(tidyfinance)
 library(dplyr)
+```
+
+Save your team's token once: `set_token()` asks for it, asks where to save it and offers to add the file to `.gitignore`. Never paste the token into a script or notebook you share.
+
+```{r}
+set_token()   # once per project
 ```
 
 ## What can we trade, and under which rules?

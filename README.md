@@ -6,28 +6,36 @@ Prices are not part of the API: download them yourself, for example with [tidyfi
 
 ## Install
 
-R:
+In a terminal, in your project folder.
 
-```r
-install.packages("pak")
-pak::pak("advanced-empirical-finance/aefsim/r")
+R, with [uvr](https://github.com/nbafrank/uvr) (version 0.4.8 or later):
+
+```sh
+uvr add advanced-empirical-finance/aefsim/r
 ```
 
-Python, with [uv](https://docs.astral.sh/uv/) in your project, or with pip:
+Python, with [uv](https://docs.astral.sh/uv/):
 
 ```sh
 uv add "git+https://github.com/advanced-empirical-finance/aefsim#subdirectory=python"
-pip install "git+https://github.com/advanced-empirical-finance/aefsim#subdirectory=python"
 ```
 
 ## Your token
 
-Each team gets one token. Keep it out of your code and out of Git: put it in an environment variable.
+Each team gets one token, starting with `aef_`. Run `set_token()` once and paste it when asked:
 
-- R: add `AEF_TOKEN=aef_...` to `~/.Renviron` (`usethis::edit_r_environ()`), then restart R.
-- Python: `export AEF_TOKEN=aef_...` in your shell, or a `.env` file you never commit.
+```r
+aefsim::set_token()
+```
 
-`set_token()` sets it for the current session instead.
+```python
+import aefsim
+aefsim.set_token()
+```
+
+It asks where to save the token: `project` for this project's folder or `home` for your home folder. R saves it in `.Renviron`, Python in `.env`. For a project folder, it offers to add that file to `.gitignore`, so the token never ends up in Git. From then on the client finds the token by itself, in every new session too. R reads only one `.Renviron`: a project's replaces the one in your home folder.
+
+In a script that runs without you, set the environment variable `AEF_TOKEN` instead, or call `set_token("aef_...")`, which asks nothing.
 
 ## How trading works
 
@@ -106,7 +114,7 @@ A rejected submission is not an error: `submit()` returns it with a warning that
 
 | Code | What it means |
 |---|---|
-| `missing_token`, `unknown_token` | No token was found, or the server does not know it. Check `AEF_TOKEN`; in R, restart R after you edit `~/.Renviron`. |
+| `missing_token`, `unknown_token` | No token was found, or the server does not know it. Run `set_token()` again and paste your team's token. |
 | `close_date_in_future` | `close_date` is later than the close before your trade. The message names the date to use. |
 | `unknown_ticker` | Not a stock in the simulation: check the spelling. Share classes take a hyphen, as in `BRK-B`. |
 | `ineligible_ticker` | The stock is not in the universe that day, usually because it closed below $5. You may keep or reduce a position in it, but not buy more. |
