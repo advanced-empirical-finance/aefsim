@@ -57,7 +57,7 @@ The functions have the same names and return the same columns in R and Python. R
 |---|---|
 | `get_universe(close_date)` | The stocks you can buy after one close (leave out `close_date` for the latest), one row per stock: `ticker`, `name`, `exchange`, `sp500` (it is in the S&P 500) and `close_date`. |
 | `get_calendar()` | Every trading day of the semester, one row per day: `date` and `deadline`, the moment your weights for that day's open must be in (the column is in UTC). US market holidays are not trading days. `is_next` marks the next one. |
-| `get_parameters()` | The trading rules, one row per rule set: transaction costs, shorting, the leverage limit, the borrow fee, the maximum number of positions, and `effective_from`, the first trading day the set applies to. The rules change twice: costs from 1 March, shorting from 5 April. `applies_next` marks the set for the next trade. |
+| `get_parameters()` | The trading rules, one row per rule set: transaction costs, shorting, the leverage limit, the borrow fee, and `effective_from`, the first trading day the set applies to. The rules change twice: costs from 1 March, shorting from 5 April. `applies_next` marks the set for the next trade. |
 
 The universe holds common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more on that day. If a stock you hold drops out, you may keep it or sell it, but not buy more; it still shows in `get_portfolio()`. Two of the three benchmarks hold the S&P 500 stocks: filter on `sp500` to choose from the same stocks.
 
@@ -65,7 +65,7 @@ The universe holds common stocks on NYSE, NYSE American and Nasdaq that closed a
 
 | Function | What it does |
 |---|---|
-| `validate(weights, close_date, rationale)` | Checks a portfolio without sending it. You get the trade date, the rule set that will apply and every problem found, such as an ineligible ticker, too many positions or too much leverage. Nothing is stored. |
+| `validate(weights, close_date, rationale)` | Checks a portfolio without sending it. You get the trade date, the rule set that will apply and every problem found, such as an unknown ticker, an ineligible stock or too much leverage. Nothing is stored. |
 | `submit(weights, close_date, rationale)` | Sends your target portfolio. It runs the same checks; a rejected submission is stored too, with its errors, and does not trade. |
 | `cancel(submission_id)` | Withdraws a submission before its deadline. |
 
@@ -104,26 +104,11 @@ aefsim.validate(weights, close_date=close_date)
 aefsim.submit(weights, close_date=close_date, rationale="Three large caps, half the book in cash while I learn the ropes.")
 ```
 
-The [notebooks](notebooks/) walk through a first submission in R and in Python.
+The course homepage's [Getting started](https://aef-course.ku.dk/simulation/getting-started.html) guide walks through a first submission in R and Python, from prices to the next morning.
 
 ## When something goes wrong
 
-Every error says what went wrong and what to do, and ends with a code in brackets, such as `[unknown_ticker]`. The same problem gives the same message in R and Python. To handle errors in code, catch `aefsim_error` in R (`tryCatch(..., aefsim_error = function(e) e$code)`) or `aefsim.AefsimError` in Python (`e.code`).
-
-A rejected submission is not an error: `submit()` returns it with a warning that lists the problems, and `validate()` shows the same list.
-
-| Code | What it means |
-|---|---|
-| `missing_token`, `unknown_token` | No token was found, or the server does not know it. Run `set_token()` again and paste your team's token. |
-| `close_date_in_future` | `close_date` is later than the close before your trade. The message names the date to use. |
-| `unknown_ticker` | Not a stock in the simulation: check the spelling. Share classes take a hyphen, as in `BRK-B`. |
-| `ineligible_ticker` | The stock is not in the universe that day, usually because it closed below $5. You may keep or reduce a position in it, but not buy more. |
-| `net_exposure_exceeded`, `leverage_exceeded` | The weights add up to more than the rules allow. |
-| `short_not_allowed` | A negative weight before shorting is allowed. |
-| `too_many_positions` | More stocks than the rules allow. |
-| `rationale_missing` | `submit()` needs a rationale. |
-| `cancel_deadline_passed` | That submission's trade has happened; it can no longer be cancelled. |
-| `connection_failed`, `timeout`, `server_unavailable` | The server could not be reached. Try again in a few minutes; tell the course team if it persists. |
+Every error says what went wrong and what to do, and ends with a code in brackets, such as `[unknown_ticker]`. The same problem gives the same message in R and Python. A rejected submission is not an error: `submit()` returns it with a warning that lists every problem, and `validate()` shows the same list. To handle errors in code, catch `aefsim_error` in R (`tryCatch(..., aefsim_error = function(e) e$code)`) or `aefsim.AefsimError` in Python (`e.code`).
 
 ## Development
 
