@@ -67,13 +67,6 @@ The functions have the same names and return the same columns in R and Python.
 | `get_leaderboard()` | Return, volatility, Sharpe ratio and maximum drawdown for every team and benchmark, under pseudonyms. `you` marks your team. |
 | `get_benchmarks()` | The three benchmark portfolios: naive 1/N (equal weights in the eligible S&P 500 stocks, rebalanced at every fill), buy and hold (the same stocks, bought at the first fill and then held) and the market (the SPY fund, held). |
 
-### Settings
-
-| Function | What it does |
-|---|---|
-| `set_token(token)` | Uses `token` for the current session. Usually not needed: the client reads `AEF_TOKEN` (see above). |
-| `set_url(url)` | Sends all requests to a different server. You don't need it: the client talks to the course server by default. The course team uses it to run tests on a separate server. |
-
 `weights` maps tickers to target weights: a named vector or a data frame with `ticker` and `weight` in R; a dict or a polars (or pandas) DataFrame with `ticker` and `weight` in Python. R returns tibbles, Python returns polars DataFrames (like tidyfinance), with the same column names. The rest of your book sits in cash. `as_of` is the date of the last close your decision used. Every submission needs a `rationale`: it is your decision log.
 
 ## Quick start
