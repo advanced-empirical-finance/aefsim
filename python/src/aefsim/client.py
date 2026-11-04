@@ -6,15 +6,17 @@ import datetime as dt
 import math
 import os
 import re
+import sys
 import time
 import warnings
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Mapping, Optional
 
 import polars as pl
 import requests
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 DEFAULT_URL = "https://eumel.tail81c88a.ts.net/aef"
 RETRY_WAIT = 1.0  # seconds before the first retry of a GET; doubles each time
 DATE_COLS = {"date", "close_date", "trade_date", "effective_from", "delisted_on", "start", "end", "next_trade_date"}
@@ -27,7 +29,17 @@ POSITIONS = pl.List(pl.Struct({"ticker": pl.String, "shares": pl.Float64, "price
 # package (r/R/messages.R); only the example differs. Errors from the server
 # arrive with their own message.
 MSG = {
-    "missing_token": "No team token. Set the environment variable AEF_TOKEN to your team's token (see the aefsim README), or call set_token().",
+    "missing_token": "No team token. Run set_token() once to save it, or set the environment variable AEF_TOKEN.",
+    "token_noninteractive": "set_token() asks for your token, which needs an interactive session. In a script, use set_token(\"aef_...\") or set the environment variable AEF_TOKEN.",
+    "token_invalid": "That is not a simulation token: team tokens start with aef_.",
+    "ask_token": "Paste your team's token (it starts with aef_): ",
+    "ask_where": "Where do you want to save it? Enter 'project' for %s in this project's folder or 'home' for your home folder: ",
+    "ask_replace": "%s already holds a token. Do you want to replace it? Enter 'yes' or 'no': ",
+    "ask_gitignore": "Do you want to add %s to .gitignore, so your token never ends up in Git? It is highly recommended! Enter 'yes' or 'no': ",
+    "gitignore_added": "%s added to .gitignore.",
+    "gitignore_not_added": "%s NOT added to .gitignore.",
+    "token_saved": "Your token is saved in %s and set for this session.",
+    "token_not_saved": "Not saved: the token is set for this session only. Run set_token() again to save it.",
     "connection_failed": "Could not reach the simulation server at %s. Check your internet connection and try again; if it stays unreachable, tell the course team.",
     "timeout": "The simulation server at %s did not answer within 60 seconds. Try again in a few minutes.",
     "timeout_write": " Your submission may have arrived anyway: check get_submissions() before you submit again.",
@@ -57,11 +69,84 @@ class AefsimError(Exception):
         self.status = status
 
 
-def set_token(token: str) -> None:
-    """Use ``token`` for this session. Better: set the environment variable AEF_TOKEN."""
-    if not isinstance(token, str) or not token:
-        raise ValueError("token must be a non-empty string")
+def set_token(token: Optional[str] = None) -> None:
+    """Save your team's token so you never put it in code.
+
+    Like tidyfinance's ``set_wrds_credentials()``, it asks for the token, then
+    whether to save it in a ``.env`` file in this project's folder or in your
+    home folder, and offers to add a project ``.env`` to ``.gitignore`` so the
+    token never ends up in Git. The client reads ``.env`` by itself, so you run
+    it once. In a script, pass the token instead (or set the environment
+    variable AEF_TOKEN): ``set_token(token)`` sets it for the session without
+    asking anything."""
+    ask = token is None
+    if ask:
+        if not _is_interactive():
+            raise AefsimError("missing_token", MSG["token_noninteractive"])
+        token = input(MSG["ask_token"]).strip()
+    if not isinstance(token, str) or not token.startswith("aef_"):
+        raise AefsimError("invalid_token", MSG["token_invalid"])
     os.environ["AEF_TOKEN"] = token
+    if ask:
+        _store_token(token, ".env")
+
+
+def _store_token(token: str, file: str) -> bool:
+    """The dialogue behind set_token(), with the same prompts as the R package."""
+    where = input(MSG["ask_where"] % file).strip().lower()
+    folder = {"project": Path.cwd(), "home": _home()}.get(where)
+    if folder is None:
+        print(MSG["token_not_saved"])
+        return False
+    path = folder / file
+    lines = path.read_text().splitlines() if path.exists() else []
+    if any(line.startswith("AEF_TOKEN=") for line in lines) and not _yes(input(MSG["ask_replace"] % file)):
+        print(MSG["token_not_saved"])
+        return False
+    lines = [line for line in lines if not line.startswith("AEF_TOKEN=")] + [f"AEF_TOKEN={token}"]
+    path.write_text("\n".join(lines) + "\n")
+    if where == "project":
+        _ignore_file(folder, file)
+    print(MSG["token_saved"] % path)
+    return True
+
+
+def _ignore_file(folder: Path, file: str) -> None:
+    gitignore = folder / ".gitignore"
+    lines = gitignore.read_text().splitlines() if gitignore.exists() else []
+    if file in (line.strip() for line in lines) or f"/{file}" in (line.strip() for line in lines):
+        return
+    if _yes(input(MSG["ask_gitignore"] % file)):
+        gitignore.write_text("\n".join(lines + [file]) + "\n")
+        print(MSG["gitignore_added"] % file)
+    else:
+        print(MSG["gitignore_not_added"] % file)
+
+
+def _yes(answer: str) -> bool:
+    return answer.strip().lower() in ("yes", "y")
+
+
+def _is_interactive() -> bool:
+    return sys.stdin is not None and sys.stdin.isatty()
+
+
+def _home() -> Path:
+    return Path.home()
+
+
+def _token() -> str:
+    """AEF_TOKEN from the environment, else from .env in this folder, else from ~/.env."""
+    token = os.environ.get("AEF_TOKEN", "")
+    if token:
+        return token
+    for path in (Path.cwd() / ".env", _home() / ".env"):
+        if path.exists():
+            for line in path.read_text().splitlines():
+                key, _, value = line.strip().removeprefix("export ").partition("=")
+                if key.strip() == "AEF_TOKEN" and value.strip():
+                    return value.strip().strip("'\"")
+    return ""
 
 
 def set_url(url: str) -> None:
@@ -76,7 +161,7 @@ def _server_url() -> str:
 def _call(method: str, path: str, body: Any = None, params: Optional[dict] = None, ok=(200,)):
     """One API call. GETs are retried on rate limits and gateway errors; writes are
     not, so a submission is never sent twice."""
-    token = os.environ.get("AEF_TOKEN", "")
+    token = _token()
     if not token:
         raise AefsimError("missing_token", MSG["missing_token"])
     base = _server_url()

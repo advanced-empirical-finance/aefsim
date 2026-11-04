@@ -2,39 +2,45 @@
 
 Clients for the trading simulation in Advanced Empirical Finance (University of Copenhagen, spring 2027). Your team submits target portfolio weights; the simulation trades them at the next US market open, charges costs and values your portfolio every day. These packages wrap the simulation's API, with the same functions in R and Python.
 
-Prices are not part of the API: download them yourself, for example with [tidyfinance](https://www.tidy-finance.org), which uses the same Yahoo Finance data as the simulation.
-
 ## Install
 
-R:
+In a terminal, in your project folder.
 
-```r
-install.packages("pak")
-pak::pak("advanced-empirical-finance/aefsim/r")
+R, with [uvr](https://github.com/nbafrank/uvr) (version 0.4.8 or later):
+
+```sh
+uvr add advanced-empirical-finance/aefsim/r
 ```
 
-Python, with [uv](https://docs.astral.sh/uv/) in your project, or with pip:
+Python, with [uv](https://docs.astral.sh/uv/):
 
 ```sh
 uv add "git+https://github.com/advanced-empirical-finance/aefsim#subdirectory=python"
-pip install "git+https://github.com/advanced-empirical-finance/aefsim#subdirectory=python"
 ```
 
 ## Your token
 
-Each team gets one token. Keep it out of your code and out of Git: put it in an environment variable.
+Each team gets one token, starting with `aef_`. Run `set_token()` once and paste it when asked:
 
-- R: add `AEF_TOKEN=aef_...` to `~/.Renviron` (`usethis::edit_r_environ()`), then restart R.
-- Python: `export AEF_TOKEN=aef_...` in your shell, or a `.env` file you never commit.
+```r
+aefsim::set_token()
+```
 
-`set_token()` sets it for the current session instead.
+```python
+import aefsim
+aefsim.set_token()
+```
+
+It asks where to save the token: `project` for this project's folder or `home` for your home folder. R saves it in `.Renviron`, Python in `.env`. For a project folder, it offers to add that file to `.gitignore`, so the token never ends up in Git. From then on the client finds the token by itself, in every new session too. R reads only one `.Renviron`: a project's replaces the one in your home folder.
+
+In a script that runs without you, set the environment variable `AEF_TOKEN` instead, or call `set_token("aef_...")`, which asks nothing.
 
 ## How trading works
 
-You decide after a US market close, with data up to that close. Then you submit target weights: what fraction of your portfolio's value each stock should have. They trade at the next market open whose deadline has not passed. The deadline is 09:00 New York time, usually 15:00 in Copenhagen, on the trading day itself.
+**You only decide and submit; everything else happens automatically.** You submit target weights, whenever you like: what fraction of your portfolio's value each stock should have. The simulation trades them at the next market open whose deadline has not passed. The deadline is 09:00 New York time, usually 15:00 in Copenhagen, on the trading day itself. Every evening it values your portfolio at the closing prices.
 
-- Submit whenever you like. A submission sent after a deadline, over a weekend or before the simulation starts waits for the next open.
-- Submit as often as you like: the last accepted submission before a deadline is the one that trades.
+- A submission sent after a deadline, over a weekend or before the simulation starts waits for the next open.
+- Submitting again before the deadline simply replaces your previous submission: only the last one trades.
 - Without a new submission, your portfolio stays as it is.
 
 `close_date` is always a date, such as `"2027-03-01"`: the day of the close your decision is based on. Usually that is the latest close, `max(get_universe()$close_date)`. Every table the client returns also has a `close_date` column: the close the data reflects. `trade_date` is the day of the open at which a submission trades.
@@ -49,7 +55,7 @@ The functions have the same names and return the same columns in R and Python. R
 |---|---|
 | `get_universe(close_date)` | The stocks you can buy after one close (leave out `close_date` for the latest), one row per stock: `ticker`, `name`, `exchange`, `sp500` (it is in the S&P 500) and `close_date`. |
 | `get_calendar()` | Every trading day of the semester, one row per day: `date` and `deadline`, the moment your weights for that day's open must be in (the column is in UTC). US market holidays are not trading days. `is_next` marks the next one. |
-| `get_parameters()` | The trading rules, one row per rule set: transaction costs, shorting, the leverage limit, the borrow fee, the maximum number of positions, and `effective_from`, the first trading day the set applies to. The rules change twice: costs from 1 March, shorting from 5 April. `applies_next` marks the set for the next trade. |
+| `get_parameters()` | The trading rules, one row per rule set: transaction costs, shorting, the leverage limit, the borrow fee, and `effective_from`, the first trading day the set applies to. The rules change twice: costs from 1 March, shorting from 5 April. `applies_next` marks the set for the next trade. |
 
 The universe holds common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more on that day. If a stock you hold drops out, you may keep it or sell it, but not buy more; it still shows in `get_portfolio()`. Two of the three benchmarks hold the S&P 500 stocks: filter on `sp500` to choose from the same stocks.
 
@@ -57,7 +63,7 @@ The universe holds common stocks on NYSE, NYSE American and Nasdaq that closed a
 
 | Function | What it does |
 |---|---|
-| `validate(weights, close_date, rationale)` | Checks a portfolio without sending it. You get the trade date, the rule set that will apply and every problem found, such as an ineligible ticker, too many positions or too much leverage. Nothing is stored. |
+| `validate(weights, close_date, rationale)` | Checks a portfolio without sending it. You get the trade date, the rule set that will apply and every problem found, such as an unknown ticker, an ineligible stock or too much leverage. Nothing is stored. |
 | `submit(weights, close_date, rationale)` | Sends your target portfolio. It runs the same checks; a rejected submission is stored too, with its errors, and does not trade. |
 | `cancel(submission_id)` | Withdraws a submission before its deadline. |
 
@@ -96,26 +102,11 @@ aefsim.validate(weights, close_date=close_date)
 aefsim.submit(weights, close_date=close_date, rationale="Three large caps, half the book in cash while I learn the ropes.")
 ```
 
-The [notebooks](notebooks/) walk through a first submission in R and in Python.
+The course homepage's [Getting started](https://aef-course.ku.dk/simulation/getting-started.html) guide walks through a first submission in R and Python, from prices to the next morning.
 
 ## When something goes wrong
 
-Every error says what went wrong and what to do, and ends with a code in brackets, such as `[unknown_ticker]`. The same problem gives the same message in R and Python. To handle errors in code, catch `aefsim_error` in R (`tryCatch(..., aefsim_error = function(e) e$code)`) or `aefsim.AefsimError` in Python (`e.code`).
-
-A rejected submission is not an error: `submit()` returns it with a warning that lists the problems, and `validate()` shows the same list.
-
-| Code | What it means |
-|---|---|
-| `missing_token`, `unknown_token` | No token was found, or the server does not know it. Check `AEF_TOKEN`; in R, restart R after you edit `~/.Renviron`. |
-| `close_date_in_future` | `close_date` is later than the close before your trade. The message names the date to use. |
-| `unknown_ticker` | Not a stock in the simulation: check the spelling. Share classes take a hyphen, as in `BRK-B`. |
-| `ineligible_ticker` | The stock is not in the universe that day, usually because it closed below $5. You may keep or reduce a position in it, but not buy more. |
-| `net_exposure_exceeded`, `leverage_exceeded` | The weights add up to more than the rules allow. |
-| `short_not_allowed` | A negative weight before shorting is allowed. |
-| `too_many_positions` | More stocks than the rules allow. |
-| `rationale_missing` | `submit()` needs a rationale. |
-| `cancel_deadline_passed` | That submission's trade has happened; it can no longer be cancelled. |
-| `connection_failed`, `timeout`, `server_unavailable` | The server could not be reached. Try again in a few minutes; tell the course team if it persists. |
+Every error says what went wrong and what to do, and ends with a code in brackets, such as `[unknown_ticker]`. The same problem gives the same message in R and Python. A rejected submission is not an error: `submit()` returns it with a warning that lists every problem, and `validate()` shows the same list. To handle errors in code, catch `aefsim_error` in R (`tryCatch(..., aefsim_error = function(e) e$code)`) or `aefsim.AefsimError` in Python (`e.code`).
 
 ## Development
 

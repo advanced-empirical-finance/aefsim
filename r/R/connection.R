@@ -1,18 +1,31 @@
 #' Connection settings
 #'
-#' The token comes from the environment variable `AEF_TOKEN`. Put
-#' `AEF_TOKEN=aef_...` in `~/.Renviron` (for example with
-#' `usethis::edit_r_environ()`) so it survives restarts, and never put it
-#' in code you share. `set_token()` sets it for the current session only.
+#' `set_token()` stores your team's token so that you never have to put it
+#' in code. Like tidyfinance's `set_wrds_credentials()`, it asks for the
+#' token, then whether to save it in this project's `.Renviron` or in the one
+#' in your home folder, and offers to add a project `.Renviron` to
+#' `.gitignore` so the token never ends up in Git. R reads `.Renviron` at
+#' startup, so you run it once. In a script, pass the token instead (or set
+#' the environment variable `AEF_TOKEN`): `set_token(token)` sets it for
+#' the session without asking anything.
+#'
 #' `set_url()` points the client at another server, for example a test one.
 #'
-#' @param token Your team's token.
+#' @param token Your team's token. Leave it out to be asked for it.
 #' @param url Base address of the API.
 #' @return Invisibly, the value set.
 #' @export
-set_token <- function(token) {
-  if (!is.character(token) || length(token) != 1L || !nzchar(token)) stop("`token` must be a non-empty string.", call. = FALSE)
+set_token <- function(token = NULL) {
+  ask <- is.null(token)
+  if (ask) {
+    if (!is_interactive()) api_error("missing_token", msg$token_noninteractive)
+    token <- trimws(ask_line(msg$ask_token))
+  }
+  if (!is.character(token) || length(token) != 1L || !startsWith(token, "aef_")) {
+    api_error("invalid_token", msg$token_invalid)
+  }
   Sys.setenv(AEF_TOKEN = token)
+  if (ask) store_token(token, ".Renviron")
   invisible(token)
 }
 

@@ -2,7 +2,17 @@
 # package (python/src/aefsim/client.py); only the example differs. Errors
 # from the server arrive with their own message.
 msg <- list(
-  missing_token = "No team token. Set the environment variable AEF_TOKEN to your team's token (see the aefsim README), or call set_token().",
+  missing_token = "No team token. Run set_token() once to save it, or set the environment variable AEF_TOKEN.",
+  token_noninteractive = "set_token() asks for your token, which needs an interactive session. In a script, use set_token(\"aef_...\") or set the environment variable AEF_TOKEN.",
+  token_invalid = "That is not a simulation token: team tokens start with aef_.",
+  ask_token = "Paste your team's token (it starts with aef_): ",
+  ask_where = "Where do you want to save it? Enter 'project' for %s in this project's folder or 'home' for your home folder: ",
+  ask_replace = "%s already holds a token. Do you want to replace it? Enter 'yes' or 'no': ",
+  ask_gitignore = "Do you want to add %s to .gitignore, so your token never ends up in Git? It is highly recommended! Enter 'yes' or 'no': ",
+  gitignore_added = "%s added to .gitignore.",
+  gitignore_not_added = "%s NOT added to .gitignore.",
+  token_saved = "Your token is saved in %s and set for this session.",
+  token_not_saved = "Not saved: the token is set for this session only. Run set_token() again to save it.",
   connection_failed = "Could not reach the simulation server at %s. Check your internet connection and try again; if it stays unreachable, tell the course team.",
   timeout = "The simulation server at %s did not answer within 60 seconds. Try again in a few minutes.",
   timeout_write = " Your submission may have arrived anyway: check get_submissions() before you submit again.",
