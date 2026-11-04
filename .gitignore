@@ -1,0 +1,14 @@
+.uvr/library/
+/.uvr/activate*
+.Rhistory
+.RData
+.Rproj.user/
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.env
+.Renviron
+*_files/
+*.html
