@@ -2,8 +2,6 @@
 
 Clients for the trading simulation in Advanced Empirical Finance (University of Copenhagen, spring 2027). Your team submits target portfolio weights; the simulation trades them at the next US market open, charges costs and values your portfolio every day. These packages wrap the simulation's API, with the same functions in R and Python.
 
-Prices are not part of the API: download them yourself, for example with [tidyfinance](https://www.tidy-finance.org), which uses the same Yahoo Finance data as the simulation.
-
 ## Install
 
 In a terminal, in your project folder.
@@ -39,10 +37,10 @@ In a script that runs without you, set the environment variable `AEF_TOKEN` inst
 
 ## How trading works
 
-You decide after a US market close, with data up to that close. Then you submit target weights: what fraction of your portfolio's value each stock should have. They trade at the next market open whose deadline has not passed. The deadline is 09:00 New York time, usually 15:00 in Copenhagen, on the trading day itself.
+**You only decide and submit; everything else happens automatically.** You submit target weights, whenever you like: what fraction of your portfolio's value each stock should have. The simulation trades them at the next market open whose deadline has not passed. The deadline is 09:00 New York time, usually 15:00 in Copenhagen, on the trading day itself. Every evening it values your portfolio at the closing prices.
 
-- Submit whenever you like. A submission sent after a deadline, over a weekend or before the simulation starts waits for the next open.
-- Submit as often as you like: the last accepted submission before a deadline is the one that trades.
+- A submission sent after a deadline, over a weekend or before the simulation starts waits for the next open.
+- Submitting again before the deadline simply replaces your previous submission: only the last one trades.
 - Without a new submission, your portfolio stays as it is.
 
 `close_date` is always a date, such as `"2027-03-01"`: the day of the close your decision is based on. Usually that is the latest close, `max(get_universe()$close_date)`. Every table the client returns also has a `close_date` column: the close the data reflects. `trade_date` is the day of the open at which a submission trades.
