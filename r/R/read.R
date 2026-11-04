@@ -1,21 +1,22 @@
 #' Read the universe, calendar, rules and benchmarks
 #'
-#' @param as_of Date of a close; the default is the latest one.
-#' @param start,end First and last fill date; default the whole semester.
+#' @param close_date Date of a close; the default is the latest one.
+#' @param start,end First and last trading day; default the whole semester.
 #' @return
-#' * `get_universe()`: a tibble of `ticker`, `name`, `exchange`, `eligible`,
-#'   `sp500`, `delisted_on` and `as_of`, the snapshot date. Only `eligible`
-#'   tickers can be bought.
-#' * `get_calendar()`: a tibble of fill dates and deadlines; `is_next` marks
-#'   the next fill.
+#' * `get_universe()`: a tibble of the stocks you can buy after that close:
+#'   `ticker`, `name`, `exchange`, `sp500` (member of the S&P 500) and
+#'   `close_date`.
+#' * `get_calendar()`: a tibble of trading days (`date`) and the deadline
+#'   for each; `is_next` marks the next one.
 #' * `get_parameters()`: a tibble of rule sets by `effective_from`;
-#'   `applies_next` marks the set in effect at the next fill.
+#'   `applies_next` marks the set in effect for the next trade.
 #' * `get_benchmarks()`: a list of `summary` and `series` tibbles.
 #' @export
-get_universe <- function(as_of = NULL) {
-  json <- api_call("GET", "universe", query = list(as_of = if (!is.null(as_of)) format(as.Date(as_of))))
+get_universe <- function(close_date = NULL) {
+  json <- api_call("GET", "universe", query = list(close_date = if (!is.null(close_date)) close_date_string(close_date)))
   x <- as_tbl(json$data)
-  x[["as_of"]] <- rep(as_date1(json$as_of), nrow(x))
+  if (!nrow(x)) x <- tibble::tibble(ticker = character(), name = character(), exchange = character(), sp500 = logical())
+  x[["close_date"]] <- rep(as_date1(json$close_date), nrow(x))
   x
 }
 
@@ -23,10 +24,10 @@ get_universe <- function(as_of = NULL) {
 #' @export
 get_calendar <- function(start = NULL, end = NULL) {
   json <- api_call("GET", "calendar", query = list(
-    from = if (!is.null(start)) format(as.Date(start)), to = if (!is.null(end)) format(as.Date(end))
+    from = if (!is.null(start)) date_string(start, "start"), to = if (!is.null(end)) date_string(end, "end")
   ))
-  x <- as_tbl(json$data$fills)
-  x[["is_next"]] <- x[["date"]] %in% as_date1(json$data$next_fill)
+  x <- as_tbl(json$data$trading_days)
+  x[["is_next"]] <- x[["date"]] %in% as_date1(json$data$next_trade_date)
   x
 }
 

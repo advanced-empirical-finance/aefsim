@@ -1,6 +1,6 @@
 Package: aefsim
 Title: Client for the AEF Trading Simulation
-Version: 0.1.0
+Version: 0.2.0
 Authors@R:
     person("Stefan", "Voigt", , "stefan.voigt@econ.ku.dk", role = c("aut", "cre"))
 Description: Submit target portfolio weights to the trading simulation of

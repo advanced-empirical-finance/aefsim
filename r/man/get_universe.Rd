@@ -7,7 +7,7 @@
 \alias{get_benchmarks}
 \title{Read the universe, calendar, rules and benchmarks}
 \usage{
-get_universe(as_of = NULL)
+get_universe(close_date = NULL)
 
 get_calendar(start = NULL, end = NULL)
 
@@ -16,19 +16,19 @@ get_parameters()
 get_benchmarks()
 }
 \arguments{
-\item{as_of}{Date of a close; the default is the latest one.}
+\item{close_date}{Date of a close; the default is the latest one.}
 
-\item{start, end}{First and last fill date; default the whole semester.}
+\item{start, end}{First and last trading day; default the whole semester.}
 }
 \value{
 \itemize{
-\item \code{get_universe()}: a tibble of \code{ticker}, \code{name}, \code{exchange}, \code{eligible},
-\code{sp500}, \code{delisted_on} and \code{as_of}, the snapshot date. Only \code{eligible}
-tickers can be bought.
-\item \code{get_calendar()}: a tibble of fill dates and deadlines; \code{is_next} marks
-the next fill.
+\item \code{get_universe()}: a tibble of the stocks you can buy after that close:
+\code{ticker}, \code{name}, \code{exchange}, \code{sp500} (member of the S&P 500) and
+\code{close_date}.
+\item \code{get_calendar()}: a tibble of trading days (\code{date}) and the deadline
+for each; \code{is_next} marks the next one.
 \item \code{get_parameters()}: a tibble of rule sets by \code{effective_from};
-\code{applies_next} marks the set in effect at the next fill.
+\code{applies_next} marks the set in effect for the next trade.
 \item \code{get_benchmarks()}: a list of \code{summary} and \code{series} tibbles.
 }
 }

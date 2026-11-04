@@ -26,13 +26,16 @@ set_url <- function(url) {
 
 default_url <- "https://eumel.tail81c88a.ts.net/aef"
 
+server_url <- function() sub("/+$", "", Sys.getenv("AEF_URL", default_url))
+
 # One API call. GET requests are retried on rate limits and gateway errors;
 # writes are not, so a submission is never sent twice. Statuses in `ok`
 # return the parsed body; anything else becomes an aefsim_error.
 api_call <- function(method, path, body = NULL, query = list(), ok = 200L) {
   token <- Sys.getenv("AEF_TOKEN")
-  if (!nzchar(token)) stop("No token: call set_token() or set AEF_TOKEN.", call. = FALSE)
-  req <- httr2::request(Sys.getenv("AEF_URL", default_url)) |>
+  if (!nzchar(token)) api_error("missing_token", msg$missing_token)
+  url <- server_url()
+  req <- httr2::request(url) |>
     httr2::req_url_path_append(path) |>
     httr2::req_method(method) |>
     httr2::req_auth_bearer_token(token) |>
@@ -49,17 +52,31 @@ api_call <- function(method, path, body = NULL, query = list(), ok = 200L) {
     )
   }
   if (!is.null(body)) req <- httr2::req_body_json(req, body, auto_unbox = TRUE, digits = NA, null = "null")
-  resp <- httr2::req_perform(req)
+  resp <- tryCatch(httr2::req_perform(req), httr2_failure = function(e) {
+    why <- paste(conditionMessage(e), if (!is.null(e$parent)) conditionMessage(e$parent))
+    if (grepl("timeout|timed out", why, ignore.case = TRUE)) {
+      api_error("timeout", paste0(sprintf(msg$timeout, url), if (method != "GET") msg$timeout_write))
+    }
+    api_error("connection_failed", sprintf(msg$connection_failed, url))
+  })
   status <- httr2::resp_status(resp)
   json <- tryCatch(httr2::resp_body_json(resp, simplifyVector = FALSE), error = function(e) NULL)
   if (!status %in% ok) {
-    err <- json$error
-    api_error(err$code %||% "http_error", err$message %||% paste("HTTP status", status), status)
+    err <- if (is.list(json)) json$error
+    if (is.null(err$code)) {
+      if (status %in% c(502L, 503L, 504L)) api_error("server_unavailable", sprintf(msg$server_unavailable, url, status), status)
+      api_error("http_error", sprintf(msg$http_error, url, status), status)
+    }
+    message <- err$message %||% ""
+    if (err$code %in% c("missing_token", "unknown_token")) message <- paste0(message, sprintf(msg$which_server, url))
+    api_error(err$code, message, status)
   }
   json
 }
 
-api_error <- function(code, message, status) {
+# Errors carry the API's `code` and HTTP `status` (NA for problems the
+# client catches before sending anything).
+api_error <- function(code, message, status = NA_integer_) {
   stop(structure(
     class = c("aefsim_error", "error", "condition"),
     list(message = paste0(message, " [", code, "]"), call = NULL, code = code, status = status)
