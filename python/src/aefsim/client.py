@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import math
 import os
 import time
@@ -9,13 +10,15 @@ import warnings
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional
 
-import pandas as pd
+import polars as pl
 import requests
 
 VERSION = "0.1.0"
 DEFAULT_URL = "https://eumel.tail81c88a.ts.net/aef"
+RETRY_WAIT = 1.0  # seconds before the first retry of a GET; doubles each time
 DATE_COLS = {"date", "as_of", "fill_date", "effective_from", "delisted_on", "start", "end", "next_fill"}
 TIME_COLS = {"submitted_at", "deadline", "cancelled_at", "next_deadline", "time"}
+WEIGHTS = pl.List(pl.Struct({"ticker": pl.String, "weight": pl.Float64}))
 
 
 class AefsimError(Exception):
@@ -53,7 +56,7 @@ def _call(method: str, path: str, body: Any = None, params: Optional[dict] = Non
     for attempt in range(tries):
         resp = requests.request(method, url, headers=headers, json=body, params=params, timeout=60)
         if method == "GET" and resp.status_code in (429, 502, 503, 504) and attempt < tries - 1:
-            time.sleep(2 ** attempt)
+            time.sleep(RETRY_WAIT * 2 ** attempt)
             continue
         break
     try:
@@ -66,37 +69,47 @@ def _call(method: str, path: str, body: Any = None, params: Optional[dict] = Non
     return payload
 
 
-def _frame(records) -> pd.DataFrame:
-    df = pd.DataFrame.from_records(records or [])
+def _frame(records, schema: Optional[dict] = None) -> pl.DataFrame:
+    """JSON records to a polars DataFrame with typed date and time columns."""
+    if records:
+        df = pl.DataFrame(records, infer_schema_length=None, schema_overrides=schema)
+    else:
+        df = pl.DataFrame(schema=schema)
     for col in df.columns:
         if col in DATE_COLS:
-            df[col] = pd.to_datetime(df[col], errors="coerce")
+            df = df.with_columns(_typed(df[col], pl.Date))
         elif col in TIME_COLS:
-            df[col] = pd.to_datetime(df[col], utc=True, errors="coerce")
+            df = df.with_columns(_typed(df[col], pl.Datetime("us", "UTC")))
     return df
 
 
-def _date(x):
-    return None if x is None else pd.Timestamp(x)
+def _typed(s: pl.Series, dtype) -> pl.Series:
+    if s.dtype == pl.String:
+        if dtype == pl.Date:
+            return s.str.to_date("%Y-%m-%d", strict=False)
+        return s.str.to_datetime("%Y-%m-%dT%H:%M:%SZ", time_zone="UTC", strict=False)
+    return s.cast(dtype)
 
 
-def _time(x):
+def _date(x) -> Optional[dt.date]:
+    return None if x is None else dt.date.fromisoformat(str(x)[:10])
+
+
+def _time(x) -> Optional[dt.datetime]:
     if x is None:
         return None
-    t = pd.Timestamp(x)
-    return t.tz_convert("UTC") if t.tzinfo else t.tz_localize("UTC")
+    return dt.datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc)
 
 
 def _weights_body(weights) -> dict:
-    if hasattr(weights, "to_dicts") and hasattr(weights, "columns"):  # a polars DataFrame
+    """Weights from a dict, a polars or pandas DataFrame with ``ticker`` and ``weight``
+    columns, or a pandas Series indexed by ticker."""
+    if hasattr(weights, "columns") and (hasattr(weights, "to_dicts") or hasattr(weights, "to_dict")):
         if not {"ticker", "weight"} <= set(weights.columns):
             raise ValueError("A weights DataFrame needs columns 'ticker' and 'weight'.")
-        weights = {row["ticker"]: row["weight"] for row in weights.to_dicts()}
-    elif isinstance(weights, pd.DataFrame):
-        if not {"ticker", "weight"} <= set(weights.columns):
-            raise ValueError("A weights DataFrame needs columns 'ticker' and 'weight'.")
-        weights = dict(zip(weights["ticker"], weights["weight"]))
-    elif isinstance(weights, pd.Series):
+        rows = weights.to_dicts() if hasattr(weights, "to_dicts") else weights.to_dict("records")
+        weights = {row["ticker"]: row["weight"] for row in rows}
+    elif not isinstance(weights, Mapping) and hasattr(weights, "to_dict"):
         weights = weights.to_dict()
     out = {}
     for ticker, weight in dict(weights).items():
@@ -112,7 +125,14 @@ def _weights_body(weights) -> dict:
 def _as_of(as_of) -> str:
     if as_of is None:
         raise ValueError("Give as_of: the date of the last close your decision used.")
-    return pd.Timestamp(as_of).strftime("%Y-%m-%d")
+    if isinstance(as_of, dt.datetime):
+        as_of = as_of.date()
+    if isinstance(as_of, dt.date):
+        return as_of.isoformat()
+    return dt.date.fromisoformat(str(as_of)[:10]).isoformat()
+
+
+ERRORS = {"code": pl.String, "ticker": pl.String, "message": pl.String}
 
 
 @dataclass(repr=False)
@@ -120,10 +140,10 @@ class Check:
     """Result of ``validate()`` or ``submit()``."""
 
     ok: bool
-    fill_date: Optional[pd.Timestamp]
+    fill_date: Optional[dt.date]
     parameter_set_id: Optional[str]
     weights: dict
-    errors: pd.DataFrame
+    errors: pl.DataFrame
     diagnostics: dict = field(default_factory=dict)
     submission_id: Optional[str] = None
     status: Optional[str] = None
@@ -132,61 +152,52 @@ class Check:
         what = "Check" if self.status is None else f"Submission {self.submission_id} ({self.status})"
         lines = [f"{what}: {'OK' if self.ok else 'problems found'}"]
         if self.fill_date is not None:
-            lines.append(f"Fill date: {self.fill_date:%Y-%m-%d}, rules {self.parameter_set_id}")
+            lines.append(f"Fill date: {self.fill_date.isoformat()}, rules {self.parameter_set_id}")
         d = self.diagnostics
         if d:
             lines.append(f"Positions {d.get('n_positions')}, gross {d.get('gross'):.3f}, net {d.get('net'):.3f}, cash {d.get('cash'):.3f}")
-        if len(self.errors):
+        if self.errors.height:
             lines.append("Errors:")
-            for _, e in self.errors.iterrows():
-                ticker = f" {e['ticker']}" if isinstance(e.get("ticker"), str) else ""
+            for e in self.errors.iter_rows(named=True):
+                ticker = f" {e['ticker']}" if e.get("ticker") else ""
                 lines.append(f"  {e['code']}{ticker}: {e['message']}")
         return "\n".join(lines)
 
 
 def _check(d: Mapping) -> Check:
-    errors = _frame(d.get("errors"))
-    if errors.empty:
-        errors = pd.DataFrame(columns=["code", "ticker", "message"])
     return Check(
         ok=bool(d.get("ok")),
         fill_date=_date(d.get("fill_date")),
         parameter_set_id=d.get("parameter_set_id"),
         weights=dict(d.get("weights") or {}),
-        errors=errors,
+        errors=_frame(d.get("errors"), ERRORS).select(list(ERRORS)),
         diagnostics=dict(d.get("diagnostics") or {}),
         submission_id=d.get("submission_id"),
         status=d.get("status"),
     )
 
 
-def get_universe(as_of=None) -> pd.DataFrame:
-    """Tickers as of a close (default: the latest): ``eligible`` ones can be bought,
-    ``sp500`` marks S&P 500 members. The snapshot date is in ``.attrs["as_of"]``."""
+def get_universe(as_of=None) -> pl.DataFrame:
+    """Tickers as of a close (default: the latest). ``eligible`` ones can be bought,
+    ``sp500`` marks S&P 500 members, ``as_of`` is the snapshot date."""
     json = _call("GET", "universe", params={"as_of": None if as_of is None else _as_of(as_of)})
-    df = _frame(json["data"])
-    df.attrs["as_of"] = _date(json["as_of"])
-    return df
+    return _frame(json["data"]).with_columns(as_of=pl.lit(_date(json["as_of"]), dtype=pl.Date))
 
 
-def get_calendar(start=None, end=None) -> pd.DataFrame:
-    """Fill dates and deadlines; ``.attrs`` has ``next_fill`` and ``next_deadline``."""
+def get_calendar(start=None, end=None) -> pl.DataFrame:
+    """Fill dates and their deadlines; ``is_next`` marks the next fill."""
     json = _call("GET", "calendar", params={
         "from": None if start is None else _as_of(start), "to": None if end is None else _as_of(end)
     })
-    df = _frame(json["data"]["fills"])
-    df.attrs["next_fill"] = _date(json["data"].get("next_fill"))
-    df.attrs["next_deadline"] = _time(json["data"].get("next_deadline"))
-    return df
+    df = _frame(json["data"]["fills"], {"date": pl.String, "deadline": pl.String})
+    return df.with_columns(is_next=pl.col("date") == pl.lit(_date(json["data"].get("next_fill")), dtype=pl.Date))
 
 
-def get_parameters() -> pd.DataFrame:
-    """Rule sets by ``effective_from``; ``.attrs`` has ``next_fill`` and ``parameter_set_id``."""
+def get_parameters() -> pl.DataFrame:
+    """Rule sets by ``effective_from``; ``applies_next`` marks the set in effect at the next fill."""
     json = _call("GET", "parameters")
     df = _frame(json["data"]["sets"])
-    df.attrs["next_fill"] = _date(json["data"].get("next_fill"))
-    df.attrs["parameter_set_id"] = json.get("parameter_set_id")
-    return df
+    return df.with_columns(applies_next=pl.col("set_id") == pl.lit(json.get("parameter_set_id"), dtype=pl.String))
 
 
 def get_benchmarks() -> dict:
@@ -218,12 +229,12 @@ def cancel(submission_id: str) -> dict:
     return {"submission_id": d["submission_id"], "cancelled_at": _time(d.get("cancelled_at")), "fill_date": _date(d.get("fill_date"))}
 
 
-def get_submissions() -> pd.DataFrame:
-    """Your submissions, newest first; ``weights`` holds a dict per row."""
-    df = _frame(_call("GET", "submissions")["data"])
-    if "weights" in df.columns:
-        df["weights"] = [dict(w) if isinstance(w, Mapping) else {} for w in df["weights"]]
-    return df
+def get_submissions() -> pl.DataFrame:
+    """Your submissions, newest first; ``weights`` is a list of ``{ticker, weight}`` per row."""
+    records = _call("GET", "submissions")["data"]
+    for r in records or []:
+        r["weights"] = [{"ticker": k, "weight": float(v)} for k, v in (r.get("weights") or {}).items()]
+    return _frame(records, {"weights": WEIGHTS} if records else None)
 
 
 def get_portfolio() -> dict:
@@ -238,6 +249,6 @@ def get_performance() -> dict:
     return {"summary": _frame(d.get("summary")), "benchmarks": _frame(d.get("benchmarks")), "series": _frame(d.get("series"))}
 
 
-def get_leaderboard() -> pd.DataFrame:
+def get_leaderboard() -> pl.DataFrame:
     """Every team's statistics under pseudonyms; ``you`` marks your row."""
     return _frame(_call("GET", "leaderboard")["data"])

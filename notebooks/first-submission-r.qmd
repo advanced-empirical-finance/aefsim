@@ -28,7 +28,7 @@ library(dplyr)
 
 ```{r}
 universe <- get_universe()
-as_of <- attr(universe, "as_of")   # the latest close
+as_of <- max(universe$as_of)   # the latest close
 as_of
 count(universe, eligible, sp500)
 ```
@@ -36,8 +36,8 @@ count(universe, eligible, sp500)
 Only `eligible` stocks can be bought: CRSP-style common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more. A stock you hold that drops below $5 may be held or reduced, not increased.
 
 ```{r}
-get_parameters()                     # costs, shorting, leverage, position cap, and when they change
-attr(get_calendar(), "next_deadline") # the next deadline, 09:00 New York time
+get_parameters()                            # costs, shorting, leverage, position cap; applies_next marks the current set
+get_calendar() |> filter(is_next)           # the next fill and its deadline, 09:00 New York time
 ```
 
 ## Prices

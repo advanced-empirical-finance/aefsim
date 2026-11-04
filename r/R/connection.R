@@ -42,7 +42,11 @@ api_call <- function(method, path, body = NULL, query = list(), ok = 200L) {
   query <- Filter(Negate(is.null), query)
   if (length(query)) req <- httr2::req_url_query(req, !!!query)
   if (method == "GET") {
-    req <- httr2::req_retry(req, max_tries = 3, is_transient = function(resp) httr2::resp_status(resp) %in% c(429L, 502L, 503L, 504L))
+    req <- httr2::req_retry(
+      req, max_tries = 3,
+      is_transient = function(resp) httr2::resp_status(resp) %in% c(429L, 502L, 503L, 504L),
+      backoff = function(i) getOption("aefsim.retry_wait", 1) * 2^(i - 1)
+    )
   }
   if (!is.null(body)) req <- httr2::req_body_json(req, body, auto_unbox = TRUE, digits = NA, null = "null")
   resp <- httr2::req_perform(req)

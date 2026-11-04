@@ -23,12 +23,12 @@ get_benchmarks()
 \value{
 \itemize{
 \item \code{get_universe()}: a tibble of \code{ticker}, \code{name}, \code{exchange}, \code{eligible},
-\code{sp500} and \code{delisted_on}, with the snapshot date as attribute \code{as_of}.
-Only \code{eligible} tickers can be bought.
-\item \code{get_calendar()}: a tibble of fill dates and deadlines, with attributes
-\code{next_fill} and \code{next_deadline}.
-\item \code{get_parameters()}: a tibble of rule sets by \code{effective_from}, with
-attribute \code{next_fill} and \code{parameter_set_id} (the set in effect then).
+\code{sp500}, \code{delisted_on} and \code{as_of}, the snapshot date. Only \code{eligible}
+tickers can be bought.
+\item \code{get_calendar()}: a tibble of fill dates and deadlines; \code{is_next} marks
+the next fill.
+\item \code{get_parameters()}: a tibble of rule sets by \code{effective_from};
+\code{applies_next} marks the set in effect at the next fill.
 \item \code{get_benchmarks()}: a list of \code{summary} and \code{series} tibbles.
 }
 }
