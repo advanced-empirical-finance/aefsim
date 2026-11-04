@@ -13,9 +13,10 @@ install.packages("pak")
 pak::pak("advanced-empirical-finance/aefsim/r")
 ```
 
-Python:
+Python, with [uv](https://docs.astral.sh/uv/) in your project, or with pip:
 
 ```sh
+uv add "git+https://github.com/advanced-empirical-finance/aefsim#subdirectory=python"
 pip install "git+https://github.com/advanced-empirical-finance/aefsim#subdirectory=python"
 ```
 
@@ -68,6 +69,13 @@ aefsim.submit(weights, as_of=as_of, rationale="Three large caps, half the book i
 ```
 
 The [notebooks](notebooks/) walk through a first submission in R and in Python.
+
+## Development
+
+- R package in `r/`: `testthat::test_local("r")`. The repository root is a [uvr](https://github.com/nbafrank/uvr) project for the development dependencies.
+- Python package in `python/`: `cd python && uv sync && uv run pytest`.
+
+Both packages are tested against canned API responses, so the tests need neither a token nor the network.
 
 ## Licence
 

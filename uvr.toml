@@ -1,0 +1,13 @@
+[project]
+name = "aefsim"
+r_version = "==4.6.1"
+
+[dependencies]
+httr2 = "*"
+tibble = "*"
+
+[dev-dependencies]
+pkgload = "*"
+roxygen2 = "*"
+testthat = "*"
+withr = "*"
