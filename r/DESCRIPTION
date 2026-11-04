@@ -1,0 +1,26 @@
+Package: aefsim
+Title: Client for the AEF Trading Simulation
+Version: 0.1.0
+Authors@R:
+    person("Stefan", "Voigt", , "stefan.voigt@econ.ku.dk", role = c("aut", "cre"))
+Description: Submit target portfolio weights to the trading simulation of
+    Advanced Empirical Finance at the University of Copenhagen, and read
+    your portfolio, performance and the leaderboard. A thin wrapper around
+    the simulation's web API; the Python package of the same name has the
+    same functions.
+License: MIT + file LICENSE
+URL: https://github.com/advanced-empirical-finance/aefsim
+BugReports: https://github.com/advanced-empirical-finance/aefsim/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Depends:
+    R (>= 4.1)
+Imports:
+    httr2 (>= 1.0.0),
+    stats,
+    tibble,
+    utils
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.1

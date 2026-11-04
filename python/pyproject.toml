@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aefsim"
+version = "0.1.0"
+description = "Client for the trading simulation in Advanced Empirical Finance"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Stefan Voigt" }]
+requires-python = ">=3.9"
+dependencies = ["requests>=2.25", "polars>=1.0"]
+
+[dependency-groups]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/advanced-empirical-finance/aefsim"
+Issues = "https://github.com/advanced-empirical-finance/aefsim/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
