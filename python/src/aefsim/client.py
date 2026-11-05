@@ -341,11 +341,12 @@ def _check(d: Mapping) -> Check:
 
 def get_universe(close_date=None) -> pl.DataFrame:
     """The stocks you can buy after a close (default: the latest): ``ticker``,
-    ``name``, ``exchange``, ``sp500`` (member of the S&P 500) and ``close_date``."""
+    ``permno`` (CRSP's permanent number, for joining CRSP data), ``name``,
+    ``exchange``, ``sp500`` (member of the S&P 500) and ``close_date``."""
     json = _call("GET", "universe", params={"close_date": None if close_date is None else _close_date(close_date)})
-    schema = {"ticker": pl.String, "name": pl.String, "exchange": pl.String, "sp500": pl.Boolean}
-    return _frame(json["data"], None if json["data"] else schema).with_columns(
-        close_date=pl.lit(_date(json["close_date"]), dtype=pl.Date))
+    schema = {"ticker": pl.String, "permno": pl.Int64, "name": pl.String, "exchange": pl.String, "sp500": pl.Boolean}
+    df = _frame(json["data"], {"permno": pl.Int64} if json["data"] else schema)
+    return df.with_columns(close_date=pl.lit(_date(json["close_date"]), dtype=pl.Date))
 
 
 def get_calendar(start=None, end=None) -> pl.DataFrame:

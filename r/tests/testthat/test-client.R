@@ -3,11 +3,12 @@
 
 test_that("the universe is typed and carries its close_date", {
   httr2::local_mocked_responses(mock_api(list("GET universe" = list(body = envelope(list(
-    list(ticker = "AAPL", name = "Apple", exchange = "Nasdaq", sp500 = TRUE),
-    list(ticker = "MSFT", name = "Microsoft", exchange = "Nasdaq", sp500 = TRUE)
+    list(ticker = "AAPL", permno = 14593L, name = "Apple", exchange = "Nasdaq", sp500 = TRUE),
+    list(ticker = "MSFT", permno = 10107L, name = "Microsoft", exchange = "Nasdaq", sp500 = TRUE)
   ))))))
   u <- get_universe()
   expect_equal(u$ticker, c("AAPL", "MSFT"))
+  expect_identical(u$permno, c(14593L, 10107L))
   expect_type(u$sp500, "logical")
   expect_equal(u$close_date, as.Date(c("2027-02-09", "2027-02-09")))
   expect_true("Authorization" %in% names(seen$req$headers))

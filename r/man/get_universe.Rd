@@ -23,8 +23,8 @@ get_benchmarks()
 \value{
 \itemize{
 \item \code{get_universe()}: a tibble of the stocks you can buy after that close:
-\code{ticker}, \code{name}, \code{exchange}, \code{sp500} (member of the S&P 500) and
-\code{close_date}.
+\code{ticker}, \code{permno} (CRSP's permanent number, for joining CRSP data),
+\code{name}, \code{exchange}, \code{sp500} (member of the S&P 500) and \code{close_date}.
 \item \code{get_calendar()}: a tibble of trading days (\code{date}) and the deadline
 for each; \code{is_next} marks the next one.
 \item \code{get_parameters()}: a tibble of rule sets by \code{effective_from};
