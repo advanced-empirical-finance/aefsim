@@ -53,11 +53,11 @@ The functions have the same names and return the same columns in R and Python. R
 
 | Function | What you get |
 |---|---|
-| `get_universe(close_date)` | The stocks you can buy after one close (leave out `close_date` for the latest), one row per stock: `ticker`, `name`, `exchange`, `sp500` (it is in the S&P 500) and `close_date`. |
+| `get_universe(close_date)` | The stocks you can buy after one close (leave out `close_date` for the latest), one row per stock: `ticker`, `permno` (CRSP's permanent number), `name`, `exchange`, `sp500` (it is in the S&P 500) and `close_date`. |
 | `get_calendar()` | Every trading day of the semester, one row per day: `date` and `deadline`, the moment your weights for that day's open must be in (the column is in UTC). US market holidays are not trading days. `is_next` marks the next one. |
 | `get_parameters()` | The trading rules, one row per rule set: transaction costs, shorting, the leverage limit, the borrow fee, and `effective_from`, the first trading day the set applies to. The rules change twice: costs from 1 March, shorting from 5 April. `applies_next` marks the set for the next trade. |
 
-The universe holds common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more on that day. If a stock you hold drops out, you may keep it or sell it, but not buy more; it still shows in `get_portfolio()`. Two of the three benchmarks hold the S&P 500 stocks: filter on `sp500` to choose from the same stocks.
+The universe holds common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more on that day. If a stock you hold drops out, you may keep it or sell it, but not buy more; it still shows in `get_portfolio()`. Two of the three benchmarks hold the S&P 500 stocks: filter on `sp500` to choose from the same stocks. If you build portfolios from CRSP data, such as tidyfinance's `crsp_monthly`, join them to the universe on `permno` to get the tickers you submit.
 
 ### Trading
 

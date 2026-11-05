@@ -4,8 +4,8 @@
 #' @param start,end First and last trading day; default the whole semester.
 #' @return
 #' * `get_universe()`: a tibble of the stocks you can buy after that close:
-#'   `ticker`, `name`, `exchange`, `sp500` (member of the S&P 500) and
-#'   `close_date`.
+#'   `ticker`, `permno` (CRSP's permanent number, for joining CRSP data),
+#'   `name`, `exchange`, `sp500` (member of the S&P 500) and `close_date`.
 #' * `get_calendar()`: a tibble of trading days (`date`) and the deadline
 #'   for each; `is_next` marks the next one.
 #' * `get_parameters()`: a tibble of rule sets by `effective_from`;
@@ -15,7 +15,8 @@
 get_universe <- function(close_date = NULL) {
   json <- api_call("GET", "universe", query = list(close_date = if (!is.null(close_date)) close_date_string(close_date)))
   x <- as_tbl(json$data)
-  if (!nrow(x)) x <- tibble::tibble(ticker = character(), name = character(), exchange = character(), sp500 = logical())
+  if (!nrow(x)) x <- tibble::tibble(ticker = character(), permno = integer(), name = character(), exchange = character(), sp500 = logical())
+  if ("permno" %in% names(x)) x$permno <- as.integer(x$permno)
   x[["close_date"]] <- rep(as_date1(json$close_date), nrow(x))
   x
 }

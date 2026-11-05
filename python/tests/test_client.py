@@ -65,12 +65,13 @@ def message(e):
 def test_the_universe_is_typed_and_carries_its_close_date(api):
     routes, calls = api
     routes["GET universe"] = (200, envelope([
-        {"ticker": "AAPL", "name": "Apple", "exchange": "Nasdaq", "sp500": True},
-        {"ticker": "MSFT", "name": "Microsoft", "exchange": "Nasdaq", "sp500": True},
+        {"ticker": "AAPL", "permno": 14593, "name": "Apple", "exchange": "Nasdaq", "sp500": True},
+        {"ticker": "MSFT", "permno": 10107, "name": "Microsoft", "exchange": "Nasdaq", "sp500": True},
     ]))
     u = aefsim.get_universe()
     assert isinstance(u, pl.DataFrame)
     assert u["ticker"].to_list() == ["AAPL", "MSFT"]
+    assert u["permno"].dtype == pl.Int64 and u["permno"].to_list() == [14593, 10107]
     assert u["sp500"].dtype == pl.Boolean
     assert u["close_date"].to_list() == [dt.date(2027, 2, 9)] * 2
     assert calls[0]["headers"]["Authorization"] == "Bearer aef_test"
