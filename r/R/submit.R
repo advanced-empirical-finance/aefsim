@@ -1,10 +1,10 @@
 #' Validate, submit and cancel
 #'
-#' `validate()` runs every check the simulation would run and stores
+#' `validate()` runs every check the trading game would run and stores
 #' nothing. `submit()` sends target weights; they trade at the next market
 #' open whose deadline (09:00 New York time) has not passed, so a
 #' submission sent after a deadline, over a weekend or before the
-#' simulation starts waits for the next open. The last accepted submission
+#' trading game starts waits for the next open. The last accepted submission
 #' before a deadline is the one that trades; a rejected one is kept in your
 #' log with its errors. `cancel()` withdraws a submission before its
 #' deadline.

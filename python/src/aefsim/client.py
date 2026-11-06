@@ -16,7 +16,7 @@ from typing import Any, Mapping, Optional
 import polars as pl
 import requests
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 DEFAULT_URL = "https://eumel.tail81c88a.ts.net/aef"
 RETRY_WAIT = 1.0  # seconds before the first retry of a GET; doubles each time
 DATE_COLS = {"date", "close_date", "trade_date", "effective_from", "delisted_on", "start", "end", "next_trade_date"}
@@ -31,7 +31,7 @@ POSITIONS = pl.List(pl.Struct({"ticker": pl.String, "shares": pl.Float64, "price
 MSG = {
     "missing_token": "No team token. Run set_token() once to save it, or set the environment variable AEF_TOKEN.",
     "token_noninteractive": "set_token() asks for your token, which needs an interactive session. In a script, use set_token(\"aef_...\") or set the environment variable AEF_TOKEN.",
-    "token_invalid": "That is not a simulation token: team tokens start with aef_.",
+    "token_invalid": "That is not a trading game token: team tokens start with aef_.",
     "ask_token": "Paste your team's token (it starts with aef_): ",
     "ask_where": "Where do you want to save it? Enter 'project' for %s in this project's folder or 'home' for your home folder: ",
     "ask_replace": "%s already holds a token. Do you want to replace it? Enter 'yes' or 'no': ",
@@ -40,11 +40,11 @@ MSG = {
     "gitignore_not_added": "%s NOT added to .gitignore.",
     "token_saved": "Your token is saved in %s and set for this session.",
     "token_not_saved": "Not saved: the token is set for this session only. Run set_token() again to save it.",
-    "connection_failed": "Could not reach the simulation server at %s. Check your internet connection and try again; if it stays unreachable, tell the course team.",
-    "timeout": "The simulation server at %s did not answer within 60 seconds. Try again in a few minutes.",
+    "connection_failed": "Could not reach the trading game's server at %s. Check your internet connection and try again; if it stays unreachable, tell the course team.",
+    "timeout": "The trading game's server at %s did not answer within 60 seconds. Try again in a few minutes.",
     "timeout_write": " Your submission may have arrived anyway: check get_submissions() before you submit again.",
-    "server_unavailable": "The simulation server at %s is not responding (HTTP %d). It may be restarting: try again in a few minutes, and tell the course team if it stays down.",
-    "http_error": "Unexpected answer from the simulation server at %s (HTTP %d).",
+    "server_unavailable": "The trading game's server at %s is not responding (HTTP %d). It may be restarting: try again in a few minutes, and tell the course team if it stays down.",
+    "http_error": "Unexpected answer from the trading game's server at %s (HTTP %d).",
     "which_server": " (server: %s)",
     "close_date_missing": "Give close_date: the date of the close your decision is based on, such as \"2027-03-01\".",
     "date_invalid": "%s must be a date in the form YYYY-MM-DD, such as \"2027-03-01\", not \"%s\".",
@@ -59,7 +59,7 @@ WEIGHTS_EXAMPLE = 'pl.DataFrame({"ticker": ["AAPL"], "weight": [0.1]})'
 
 
 class AefsimError(Exception):
-    """An error from the simulation or the client, with its ``code`` and HTTP
+    """An error from the trading game or the client, with its ``code`` and HTTP
     ``status`` (None for problems the client catches before sending anything)."""
 
     def __init__(self, code: str, message: str, status: Optional[int] = None):
@@ -373,7 +373,7 @@ def get_benchmarks() -> dict:
 
 
 def validate(weights, close_date=None, rationale: Optional[str] = None) -> Check:
-    """Run every check the simulation would run, without storing anything."""
+    """Run every check the trading game would run, without storing anything."""
     body = {"close_date": _close_date(close_date), "weights": _weights_body(weights), "rationale": rationale}
     return _check(_call("POST", "validate", body=body)["data"])
 

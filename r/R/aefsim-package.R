@@ -1,4 +1,4 @@
-#' aefsim: client for the AEF trading simulation
+#' aefsim: client for the AEF trading game
 #'
 #' Functions to read the universe, the calendar and the rules, to validate,
 #' submit and cancel target weights, and to read your portfolio,

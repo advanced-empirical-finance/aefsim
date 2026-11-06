@@ -4,7 +4,7 @@
 \name{aefsim-package}
 \alias{aefsim}
 \alias{aefsim-package}
-\title{aefsim: client for the AEF trading simulation}
+\title{aefsim: client for the AEF trading game}
 \description{
 Functions to read the universe, the calendar and the rules, to validate,
 submit and cancel target weights, and to read your portfolio,

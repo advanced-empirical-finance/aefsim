@@ -35,11 +35,11 @@ An \code{aefsim_check}: a list with \code{ok}, \code{trade_date},
 \code{cancelled_at} and \code{trade_date}.
 }
 \description{
-\code{validate()} runs every check the simulation would run and stores
+\code{validate()} runs every check the trading game would run and stores
 nothing. \code{submit()} sends target weights; they trade at the next market
 open whose deadline (09:00 New York time) has not passed, so a
 submission sent after a deadline, over a weekend or before the
-simulation starts waits for the next open. The last accepted submission
+trading game starts waits for the next open. The last accepted submission
 before a deadline is the one that trades; a rejected one is kept in your
 log with its errors. \code{cancel()} withdraws a submission before its
 deadline.

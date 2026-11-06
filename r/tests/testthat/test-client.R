@@ -116,7 +116,7 @@ test_that("lookups retry on busy servers, writes never do", {
   expect_false(policy$retry_is_transient(httr2::response(status_code = 422L)))
   err <- tryCatch(submit(numeric(0), close_date = "2027-02-09", rationale = "x"), aefsim_error = function(e) e)
   expect_equal(conditionMessage(err), paste(
-    "The simulation server at https://example.org/aef is not responding (HTTP 502).",
+    "The trading game's server at https://example.org/aef is not responding (HTTP 502).",
     "It may be restarting: try again in a few minutes, and tell the course team if it stays down. [server_unavailable]"
   ))
   expect_null(seen$req$policies$retry_max_tries)
@@ -174,13 +174,13 @@ test_that("an unreachable server and unexpected answers get plain messages", {
   withr::local_envvar(AEF_URL = "http://127.0.0.1:9")
   err <- tryCatch(get_universe(), aefsim_error = function(e) e)
   expect_equal(conditionMessage(err), paste(
-    "Could not reach the simulation server at http://127.0.0.1:9. Check your internet connection and try again;",
+    "Could not reach the trading game's server at http://127.0.0.1:9. Check your internet connection and try again;",
     "if it stays unreachable, tell the course team. [connection_failed]"
   ))
   withr::local_envvar(AEF_URL = "https://example.org/aef")
   httr2::local_mocked_responses(mock_api(list("GET universe" = list(status = 418L, raw = "teapot"))))
   err <- tryCatch(get_universe(), aefsim_error = function(e) e)
-  expect_equal(conditionMessage(err), "Unexpected answer from the simulation server at https://example.org/aef (HTTP 418). [http_error]")
+  expect_equal(conditionMessage(err), "Unexpected answer from the trading game's server at https://example.org/aef (HTTP 418). [http_error]")
   expect_equal(err$status, 418L)
 })
 
@@ -230,7 +230,7 @@ test_that("set_token() asks where to save the token and offers to add it to .git
   expect_equal(said, "Not saved: the token is set for this session only. Run set_token() again to save it.")
 
   err <- tryCatch(set_token("nope"), aefsim_error = function(e) e)
-  expect_equal(conditionMessage(err), "That is not a simulation token: team tokens start with aef_. [invalid_token]")
+  expect_equal(conditionMessage(err), "That is not a trading game token: team tokens start with aef_. [invalid_token]")
   local_mocked_bindings(is_interactive = function() FALSE)
   err <- tryCatch(set_token(), aefsim_error = function(e) e)
   expect_equal(conditionMessage(err), paste(
