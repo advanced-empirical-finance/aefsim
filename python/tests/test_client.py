@@ -188,7 +188,7 @@ def test_lookups_retry_on_busy_servers_writes_never_do(api):
     with pytest.raises(aefsim.AefsimError) as e:
         aefsim.submit({}, close_date="2027-02-09", rationale="x")
     assert message(e) == (
-        "The simulation server at https://example.org/aef is not responding (HTTP 502). "
+        "The trading game's server at https://example.org/aef is not responding (HTTP 502). "
         "It may be restarting: try again in a few minutes, and tell the course team if it stays down. [server_unavailable]"
     )
     assert len(calls) == 1
@@ -242,7 +242,7 @@ def test_an_unreachable_server_and_unexpected_answers_get_plain_messages(api, mo
     with pytest.raises(aefsim.AefsimError) as e:
         aefsim.get_universe()
     assert message(e) == (
-        "Could not reach the simulation server at http://127.0.0.1:9. Check your internet connection and try again; "
+        "Could not reach the trading game's server at http://127.0.0.1:9. Check your internet connection and try again; "
         "if it stays unreachable, tell the course team. [connection_failed]"
     )
     monkeypatch.undo()
@@ -251,7 +251,7 @@ def test_an_unreachable_server_and_unexpected_answers_get_plain_messages(api, mo
     monkeypatch.setattr(client.requests, "request", lambda *a, **k: FakeResponse(418, Raw("teapot")))
     with pytest.raises(aefsim.AefsimError) as e:
         aefsim.get_universe()
-    assert message(e) == "Unexpected answer from the simulation server at https://example.org/aef (HTTP 418). [http_error]"
+    assert message(e) == "Unexpected answer from the trading game's server at https://example.org/aef (HTTP 418). [http_error]"
     assert e.value.status == 418
 
 
@@ -300,7 +300,7 @@ def test_set_token_asks_where_to_save_the_token_and_offers_to_add_it_to_gitignor
 
     with pytest.raises(aefsim.AefsimError) as e:
         aefsim.set_token("nope")
-    assert message(e) == "That is not a simulation token: team tokens start with aef_. [invalid_token]"
+    assert message(e) == "That is not a trading game token: team tokens start with aef_. [invalid_token]"
     monkeypatch.setattr(client, "_is_interactive", lambda: False)
     with pytest.raises(aefsim.AefsimError) as e:
         aefsim.set_token()

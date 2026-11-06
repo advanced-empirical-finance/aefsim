@@ -1,12 +1,12 @@
 Package: aefsim
-Title: Client for the AEF Trading Simulation
-Version: 0.3.0
+Title: Client for the AEF Trading Game
+Version: 0.3.1
 Authors@R:
     person("Stefan", "Voigt", , "stefan.voigt@econ.ku.dk", role = c("aut", "cre"))
-Description: Submit target portfolio weights to the trading simulation of
+Description: Submit target portfolio weights to the trading game of
     Advanced Empirical Finance at the University of Copenhagen, and read
     your portfolio, performance and the leaderboard. A thin wrapper around
-    the simulation's web API; the Python package of the same name has the
+    the trading game's web API; the Python package of the same name has the
     same functions.
 License: MIT + file LICENSE
 URL: https://github.com/advanced-empirical-finance/aefsim

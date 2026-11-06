@@ -1,4 +1,4 @@
-"""Client for the trading simulation in Advanced Empirical Finance.
+"""Client for the trading game in Advanced Empirical Finance.
 
 Start with ``set_token()`` or the environment variable ``AEF_TOKEN``.
 """

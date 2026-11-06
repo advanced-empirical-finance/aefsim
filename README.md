@@ -1,6 +1,6 @@
 # aefsim
 
-Clients for the trading simulation in Advanced Empirical Finance (University of Copenhagen, spring 2027). Your team submits target portfolio weights; the simulation trades them at the next US market open, charges costs and values your portfolio every day. These packages wrap the simulation's API, with the same functions in R and Python.
+Clients for the trading game in Advanced Empirical Finance (University of Copenhagen, spring 2027). Your team submits target portfolio weights; the trading game trades them at the next US market open, charges costs and values your portfolio every day. These packages wrap the trading game's API, with the same functions in R and Python.
 
 ## Install
 
@@ -37,9 +37,9 @@ In a script that runs without you, set the environment variable `AEF_TOKEN` inst
 
 ## How trading works
 
-**You only decide and submit; everything else happens automatically.** You submit target weights, whenever you like: what fraction of your portfolio's value each stock should have. The simulation trades them at the next market open whose deadline has not passed. The deadline is 09:00 New York time, usually 15:00 in Copenhagen, on the trading day itself. Every evening it values your portfolio at the closing prices.
+**You only decide and submit; everything else happens automatically.** You submit target weights, whenever you like: what fraction of your portfolio's value each stock should have. The trading game trades them at the next market open whose deadline has not passed. The deadline is 09:00 New York time, usually 15:00 in Copenhagen, on the trading day itself. Every evening it values your portfolio at the closing prices.
 
-- A submission sent after a deadline, over a weekend or before the simulation starts waits for the next open.
+- A submission sent after a deadline, over a weekend or before the trading game starts waits for the next open.
 - Submitting again before the deadline simply replaces your previous submission: only the last one trades.
 - Without a new submission, your portfolio stays as it is.
 
@@ -55,9 +55,9 @@ The functions have the same names and return the same columns in R and Python. R
 |---|---|
 | `get_universe(close_date)` | The stocks you can buy after one close (leave out `close_date` for the latest), one row per stock: `ticker`, `permno` (CRSP's permanent number), `name`, `exchange`, `sp500` (it is in the S&P 500) and `close_date`. |
 | `get_calendar()` | Every trading day of the semester, one row per day: `date` and `deadline`, the moment your weights for that day's open must be in (the column is in UTC). US market holidays are not trading days. `is_next` marks the next one. |
-| `get_parameters()` | The trading rules, one row per rule set: transaction costs, shorting, the leverage limit, the borrow fee, and `effective_from`, the first trading day the set applies to. The rules change twice: costs from 1 March, shorting from 5 April. `applies_next` marks the set for the next trade. |
+| `get_parameters()` | The trading rules, one row per rule set: transaction costs, shorting, the leverage limit, the borrow fee, and `effective_from`, the first trading day the set applies to. Long and short positions and borrowing are allowed throughout, up to a gross exposure (the absolute weights added up) of 300 %; trades cost 10 bps from 1 March, and short positions pay a borrow fee from 5 April. `applies_next` marks the set for the next trade. |
 
-The universe holds common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more on that day. If a stock you hold drops out, you may keep it or sell it, but not buy more; it still shows in `get_portfolio()`. Two of the three benchmarks hold the S&P 500 stocks: filter on `sp500` to choose from the same stocks. If you build portfolios from CRSP data, such as tidyfinance's `crsp_monthly`, join them to the universe on `permno` to get the tickers you submit.
+The asset universe holds common stocks on NYSE, NYSE American and Nasdaq that closed at $5 or more on that day. If a stock you hold drops out, you may keep it or sell it, but not buy more; it still shows in `get_portfolio()`. Two of the three benchmarks hold the S&P 500 stocks: filter on `sp500` to choose from the same stocks. If you build portfolios from CRSP data, such as tidyfinance's `crsp_monthly`, join them to the universe on `permno` to get the tickers you submit.
 
 ### Trading
 
@@ -77,7 +77,7 @@ The universe holds common stocks on NYSE, NYSE American and Nasdaq that closed a
 | `get_portfolio()` | Your portfolio at the latest close, as one row: `close_date`, `portfolio_value` (positions plus cash), `cash` and `positions`, with shares, price, value and weight per stock. |
 | `get_performance()` | Your daily `portfolio_value` before and after costs (`series`) and your return, volatility, Sharpe ratio, maximum drawdown, turnover and costs (`summary`), with the same statistics for the benchmarks (`benchmarks`). |
 | `get_leaderboard()` | Return, volatility, Sharpe ratio and maximum drawdown for every team and benchmark, under pseudonyms. `you` marks your team. |
-| `get_benchmarks()` | The three benchmark portfolios: naive 1/N (equal weights in the S&P 500 stocks of the universe, rebalanced every day), buy and hold (the same stocks, bought at the first trade and then held) and the market (the SPY fund, held). |
+| `get_benchmarks()` | The three benchmark portfolios: naive 1/N (equal weights in the S&P 500 stocks of the asset universe, rebalanced every day), buy and hold (the same stocks, bought at the first trade and then held) and the market (the SPY fund, held). |
 
 Results are updated once a night, after the US close: a trade at Tuesday's open shows up on Wednesday morning, Copenhagen time.
 
