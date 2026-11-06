@@ -102,7 +102,7 @@ aefsim.validate(weights, close_date=close_date)
 aefsim.submit(weights, close_date=close_date, rationale="Three large caps, half the book in cash while I learn the ropes.")
 ```
 
-The course homepage's [Getting started](https://aef-course.ku.dk/simulation/getting-started.html) guide walks through a first submission in R and Python, from prices to the next morning.
+The course homepage's [Getting started](https://aef-course.ku.dk/trading-game/getting-started.html) guide walks through a first submission in R and Python, from prices to the next morning.
 
 ## When something goes wrong
 
